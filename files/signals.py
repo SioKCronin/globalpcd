@@ -1,0 +1,139 @@
+"""
+pcd.signals
+-----------
+Synthetic passive cavitation detection signal generator.
+
+Produces time-domain RF signals mimicking the acoustic emissions
+received by a passive transducer during histotripsy treatment.
+
+Three cavitation regimes:
+  - none:     background noise only
+  - stable:   harmonics + subharmonic (f/2) + ultraharmonics (3f/2)
+  - inertial: broadband noise elevation (wideband collapse signature)
+"""
+
+import numpy as np
+from dataclasses import dataclass, field
+from typing import Literal
+
+CavitationRegime = Literal["none", "stable", "inertial"]
+
+
+@dataclass
+class SignalParams:
+    """Parameters for synthetic PCD signal generation."""
+    fs: float = 100e6          # Sample rate (Hz)
+    duration: float = 50e-6   # Signal window duration (s)
+    f_drive: float = 1.0e6    # Therapy drive frequency (Hz)
+    snr_db: float = 20.0      # Signal-to-noise ratio (dB)
+
+    # Stable cavitation amplitudes (relative)
+    harmonic_amp: float = 0.5
+    subharmonic_amp: float = 0.3      # f/2  — key stable cavitation marker
+    ultraharmonic_amp: float = 0.15   # 3f/2
+
+    # Inertial cavitation: broadband noise boost (dB above floor)
+    broadband_boost_db: float = 25.0
+
+    # Inertial cavitation: fraction of spectrum filled with coherent burst
+    broadband_fraction: float = 0.7
+
+    seed: int = 42
+
+
+def generate_signal(
+    regime: CavitationRegime,
+    params: SignalParams | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Generate a synthetic PCD time-domain signal.
+
+    Parameters
+    ----------
+    regime : CavitationRegime
+        One of 'none', 'stable', 'inertial'.
+    params : SignalParams, optional
+        Generation parameters. Defaults to SignalParams().
+
+    Returns
+    -------
+    t : np.ndarray
+        Time axis (seconds).
+    signal : np.ndarray
+        Normalised RF signal (float64, range ≈ [-1, 1]).
+    """
+    if params is None:
+        params = SignalParams()
+
+    rng = np.random.default_rng(params.seed)
+    n_samples = int(params.fs * params.duration)
+    t = np.linspace(0, params.duration, n_samples, endpoint=False)
+
+    noise_amplitude = 10 ** (-params.snr_db / 20)
+    signal = rng.normal(0, noise_amplitude, n_samples)
+
+    f = params.f_drive
+
+    if regime == "none":
+        pass  # pure noise
+
+    elif regime == "stable":
+        # Drive frequency and harmonics
+        for harmonic in [1, 2, 3]:
+            phase = rng.uniform(0, 2 * np.pi)
+            amp = params.harmonic_amp / harmonic
+            signal += amp * np.sin(2 * np.pi * harmonic * f * t + phase)
+
+        # Subharmonic f/2  — hallmark of stable cavitation
+        phase = rng.uniform(0, 2 * np.pi)
+        signal += params.subharmonic_amp * np.sin(2 * np.pi * (f / 2) * t + phase)
+
+        # Ultraharmonic 3f/2
+        phase = rng.uniform(0, 2 * np.pi)
+        signal += params.ultraharmonic_amp * np.sin(2 * np.pi * (3 * f / 2) * t + phase)
+
+    elif regime == "inertial":
+        # Broadband noise burst — wideband inertial collapse signature.
+        # We build the signal directly in the frequency domain so that
+        # broadband energy genuinely dominates after normalisation.
+        freqs = np.fft.rfftfreq(n_samples, d=1 / params.fs)
+        n_rfft = len(freqs)
+
+        # Start from white noise in frequency domain
+        phases = rng.uniform(0, 2 * np.pi, n_rfft)
+        amplitudes = np.ones(n_rfft)
+
+        # Shape: keep energy only in the therapeutic band
+        f_low = 0.1e6
+        f_high = params.fs * 0.45 * params.broadband_fraction
+        band_mask = (freqs >= f_low) & (freqs <= f_high)
+        amplitudes[~band_mask] = 0.0
+
+        # Suppress narrow bands around harmonics so they don't look like
+        # harmonic peaks — real inertial emissions have no tonal structure
+        for harmonic in [0.5, 1.0, 1.5, 2.0, 3.0]:
+            notch = np.abs(freqs - harmonic * f) < 30e3
+            amplitudes[notch] = 0.0
+
+        broadband_spectrum = amplitudes * np.exp(1j * phases)
+        broadband = np.fft.irfft(broadband_spectrum, n=n_samples)
+
+        # Scale so broadband RMS >> residual harmonic
+        boost = 10 ** (params.broadband_boost_db / 20) * noise_amplitude
+        rms = np.sqrt(np.mean(broadband ** 2)) + 1e-12
+        broadband = broadband / rms * boost
+
+        signal += broadband
+
+        # Small residual at drive frequency (therapy transducer leakage)
+        signal += 0.05 * np.sin(2 * np.pi * f * t)
+
+    else:
+        raise ValueError(f"Unknown regime: {regime!r}")
+
+    # Normalise
+    peak = np.max(np.abs(signal))
+    if peak > 0:
+        signal = signal / peak
+
+    return t, signal
