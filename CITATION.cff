@@ -1,0 +1,20 @@
+cff-version: "1.2.0"
+title: "globalPCD — Passive cavitation detection prototype toolkit"
+message: "If you use this software, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: Cronin
+    given-names: Siobhan K
+license: MIT
+repository-code: "https://github.com/SioKCronin/globalPCD"
+abstract: >-
+  Python toolkit for simulating, analysing, and spatially localising synthetic
+  passive cavitation detection (PCD) signals for histotripsy-related research.
+keywords:
+  - passive cavitation detection
+  - histotripsy
+  - ultrasound
+  - beamforming
+  - GCC-PHAT
+version: "0.1.0"
+date-released: "2025-01-01"

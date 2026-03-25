@@ -40,3 +40,29 @@ feat = extract_features(t, s, f_drive=1e6)
 result = classify(feat)
 print(result.label, result.notes)
 ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## Citation
+
+If you use globalPCD in research or publications, please cite the software as:
+
+**Plain text**
+
+Cronin, S. K. (2025). globalPCD: Passive cavitation detection prototype toolkit (Python). https://github.com/SioKCronin/globalPCD
+
+**BibTeX**
+
+```bibtex
+@software{globalpcd2025,
+  author = {Cronin, Siobhan K.},
+  title = {{globalPCD}: Passive cavitation detection prototype toolkit},
+  year = {2025},
+  url = {https://github.com/SioKCronin/globalPCD},
+  note = {Synthetic PCD signals, spectral features, regime classification, GCC-PHAT passive mapping},
+}
+```
+
+A machine-readable citation file is also provided as [`CITATION.cff`](CITATION.cff) (supported by GitHub and Zenodo).

@@ -7,7 +7,11 @@ name = "globalpcd"
 version = "0.1.0"
 description = "Passive cavitation detection (PCD) prototype toolkit"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
+authors = [
+    { name = "Siobhan K Cronin" },
+]
 dependencies = [
     "numpy>=1.22",
     "scipy>=1.9",

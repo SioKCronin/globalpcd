@@ -255,13 +255,15 @@ to extend it toward real experimental data, get in touch.
 
 ## Citation
 
+See the repository root [`README.md`](../README.md) for BibTeX, plain text, and [`CITATION.cff`](../CITATION.cff).
+
 ```
-Siobhan K Cronin, pcd-proto (2025)
-GitHub: https://github.com/your-username/pcd-proto
+Siobhan K Cronin, globalPCD (2025)
+GitHub: https://github.com/SioKCronin/globalPCD
 ```
 
 ---
 
 ## Licence
 
-MIT
+This project is released under the [MIT License](../LICENSE).
