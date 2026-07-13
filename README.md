@@ -2,6 +2,8 @@
 
 **Passive cavitation detection (PCD)** — Python toolkit for simulating, analysing, and spatially localising acoustic emissions from histotripsy bubble clouds (synthetic data only).
 
+The hard part is not detecting that cavitation exists — it is knowing, in real time, **where** it is and **what kind** it is. Therapy pulses, tissue clutter, and bubble clouds all radiate into the same receive array; stable and inertial regimes overlap spectrally; and on diagnostic linear arrays, conventional delay-and-sum maps are axially blurred with high sidelobes, while sharper adaptive beamformers are often too slow for closed-loop monitoring. Until dose, location, and regime can be trusted together, safe automated feedback remains an open problem.
+
 ## Install
 
 ```bash
