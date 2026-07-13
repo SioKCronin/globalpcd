@@ -1,26 +1,21 @@
 """
 pcd.beamformer
 --------------
-Passive acoustic source localisation using GCC-PHAT and delay-and-sum.
+Passive acoustic source localisation and cavitation mapping.
 
-Two complementary algorithms are provided:
+Algorithms
+----------
+1. gcc_phat_map  (recommended for broadband point localisation)
+   GCC-PHAT TDOA grid search — robust for inertial emissions.
 
-1. gcc_phat_map  (recommended)
-   -------------------------
-   Generalised Cross-Correlation with PHAse Transform (GCC-PHAT).
-   Measures the time-difference-of-arrival (TDOA) between every element
-   and a reference element using phase-weighted cross-correlation, then
-   performs a grid search to find the source location that best explains
-   all observed TDOAs (minimum squared TDOA residual).
+2. delay_and_sum  (classic TEA-style DAS, for comparison)
+   Coherent delay-and-sum on analytic signals.
 
-   GCC-PHAT is robust to broadband signals and moderate noise — ideal for
-   inertial cavitation emissions which are inherently wideband.
-
-2. delay_and_sum  (classic, included for comparison)
-   --------------------------------------------------
-   Conventional passive DAS beamformer using relative TOF delays and
-   coherent summation of analytic (Hilbert-transformed) signals.
-   Works well for narrowband sources; contrast degrades for broadband.
+3. delay_multiply_and_sum  (HO-DMAS, Huber et al. 2025)
+   Higher-order Delay Multiply and Sum with linear complexity via
+   Macdonald determinants of power sums. Order j=1 recovers DAS-like
+   TEA; j=2 is classic DMAS; j=3–5 is the recommended monitoring
+   default; j≥10 can degrade at low SNR.
 
 Coordinate system
 -----------------
@@ -36,11 +31,17 @@ References
   method", JASA, 2009.
 - Gyöngy & Coussios, "Passive cavitation imaging with ultrasound arrays",
   IEEE UFFC, 2010.
+- Huber et al., "Passive cavitation mapping … higher order delay multiply
+  and sum … linear complexity", Ultrasonics 153:107653, 2025.
+- Lu et al., "Delay multiply and sum … linear-array passive acoustic
+  mapping", Med Phys 46:4441–4454, 2019.
 """
+
+from __future__ import annotations
 
 import numpy as np
 from dataclasses import dataclass
-from scipy.signal import hilbert
+from scipy.signal import hilbert, resample
 
 
 @dataclass
@@ -247,6 +248,227 @@ def delay_and_sum(
     peak_val     = np.max(intensity)
     intensity_db = 20 * np.log10(intensity / (peak_val + 1e-12) + 1e-12)
     peak_idx      = np.unravel_index(np.argmax(intensity), intensity.shape)
+    peak_location = (float(x_axis[peak_idx[1]]), float(z_axis[peak_idx[0]]))
+
+    return PAMResult(
+        intensity=intensity,
+        intensity_db=intensity_db,
+        x_axis=x_axis,
+        z_axis=z_axis,
+        peak_location=peak_location,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Higher-order Delay Multiply and Sum (Huber et al. 2025)
+# ---------------------------------------------------------------------------
+
+def _signed_root(x: np.ndarray, order: int) -> np.ndarray:
+    """Signed j-th root compression: sign(x) * |x|**(1/j)."""
+    if order == 1:
+        return x
+    return np.sign(x) * np.abs(x) ** (1.0 / order)
+
+
+def _elementary_from_power_sums(power_sums: np.ndarray, order: int) -> np.ndarray:
+    """
+    Elementary symmetric sum E_j(t) from power sums via Newton–Girard.
+
+    ``power_sums`` has shape (j, T) with power_sums[k-1] == e_k(t).
+    Returns E_j with shape (T,). Equivalent to Macdonald det/j! (Huber eq. 17)
+    but vectorised over time.
+    """
+    # E[k] holds E_k for k = 0..j; E_0 = 1
+    n_t = power_sums.shape[1]
+    e_sym = [np.ones(n_t, dtype=float)]
+    for k in range(1, order + 1):
+        acc = np.zeros(n_t, dtype=float)
+        for i in range(1, k + 1):
+            sign = 1.0 if (i % 2) == 1 else -1.0
+            acc += sign * e_sym[k - i] * power_sums[i - 1]
+        e_sym.append(acc / float(k))
+    return e_sym[order]
+
+
+def _dmas_prefactor(n_elements: int, order: int) -> float:
+    """1 / P(N, j) = 1 / (N * (N-1) * … * (N-j+1))."""
+    pref = 1.0
+    for m in range(order):
+        pref /= float(n_elements - m)
+    return pref
+
+
+def _upsample_for_dmas(
+    signals: np.ndarray,
+    fs: float,
+    order: int,
+    f_high: float | None,
+) -> tuple[np.ndarray, float]:
+    """
+    Upsample RF channels to accommodate spectral stretching from products.
+
+    Huber empirical rule: fs ≈ 5 * f_high * (1 + 0.1*(j-1)).
+    When ``f_high`` is None, scale the current rate by (1 + 0.1*(j-1)).
+    """
+    if order <= 1:
+        return signals, fs
+
+    if f_high is not None:
+        target_fs = 5.0 * f_high * (1.0 + 0.1 * (order - 1))
+    else:
+        target_fs = fs * (1.0 + 0.1 * (order - 1))
+
+    if target_fs <= fs * 1.01:
+        return signals, fs
+
+    n_new = int(round(signals.shape[1] * target_fs / fs))
+    up = np.vstack([resample(ch, n_new) for ch in signals])
+    return up, target_fs
+
+
+def _delayed_channels(
+    signals: np.ndarray,
+    rel_delays_samples: np.ndarray,
+) -> np.ndarray:
+    """
+    Linearly interpolate each channel by a fractional sample delay.
+
+    Returns array shape (N_elements, N_samples) with zeros in undefined
+    leading samples (causal relative delay).
+    """
+    n_elements, n_samples = signals.shape
+    delayed = np.zeros_like(signals, dtype=float)
+
+    for ie in range(n_elements):
+        d = float(rel_delays_samples[ie])
+        i0 = int(np.floor(d))
+        frac = d - i0
+        end = n_samples - i0 - 1
+        if end <= 0:
+            continue
+        delayed[ie, :end] = (
+            (1.0 - frac) * signals[ie, :end]
+            + frac * signals[ie, 1 : end + 1]
+        )
+    return delayed
+
+
+def delay_multiply_and_sum(
+    signals: np.ndarray,
+    fs: float,
+    array: ArrayGeometry,
+    order: int = 5,
+    x_range: tuple[float, float] = (-10e-3, 10e-3),
+    z_range: tuple[float, float] = (20e-3, 60e-3),
+    grid_points: int = 80,
+    c: float = 1540.0,
+    upsample: bool = True,
+    f_high: float | None = None,
+    gate_s: float | None = None,
+) -> PAMResult:
+    """
+    Higher-order Delay Multiply and Sum (DMASj) passive cavitation map.
+
+    Implements Huber et al. (Ultrasonics 2025) linear-complexity HO-DMAS:
+    signed j-th-root compression, power sums, and Macdonald / Newton–Girard
+    elementary symmetric sums so order-j products cost O(j² · N · T) per
+    pixel instead of combinatorial O(N^j).
+
+    Intensity uses time-exposure acoustics (TEA): sum of q_j(t)^2 over a
+    TOF-centred gate at each pixel (full window if ``gate_s`` is None and
+    the receive buffer is short).
+
+    Parameters
+    ----------
+    signals : np.ndarray, shape (N_elements, N_samples)
+        Real RF channel data.
+    fs : float
+        Sample rate (Hz).
+    array : ArrayGeometry
+    order : int
+        DMAS order j. 1 ≈ DAS TEA, 2 = classic DMAS, 3–5 recommended
+        for monitoring (Huber: order 10 can fail at low SNR).
+    x_range, z_range : (float, float)
+        Grid extents in metres.
+    grid_points : int
+        Points per axis.
+    c : float
+        Speed of sound (m/s).
+    upsample : bool
+        If True, resample channels to accommodate product-induced
+        bandwidth growth (Huber §2.3).
+    f_high : float or None
+        Upper transducer bandwidth (Hz) for the Huber sampling rule.
+        If None, scale ``fs`` by (1 + 0.1*(j-1)).
+    gate_s : float or None
+        Half-width of the TEA integration gate in seconds, centred on
+        the minimum element TOF. Default: 15 µs (suited to short
+        synthetic pulses). Set to 0 to integrate the full buffer.
+
+    Returns
+    -------
+    PAMResult
+    """
+    if order < 1:
+        raise ValueError(f"DMAS order must be >= 1, got {order}")
+
+    n_elements, _ = signals.shape
+    if n_elements != len(array.element_positions):
+        raise ValueError("signals rows must match array element count")
+    if n_elements < order:
+        raise ValueError(
+            f"Need at least {order} elements for DMAS order {order}, "
+            f"got {n_elements}"
+        )
+
+    work, work_fs = (
+        _upsample_for_dmas(signals, fs, order, f_high)
+        if upsample
+        else (np.asarray(signals, dtype=float), fs)
+    )
+    work = np.asarray(work, dtype=float)
+    pref = _dmas_prefactor(n_elements, order)
+    elem_pos = array.element_positions
+    if gate_s is None:
+        gate_s = 15e-6
+    gate_half = int(max(0.0, gate_s) * work_fs)
+
+    x_axis = np.linspace(x_range[0], x_range[1], grid_points)
+    z_axis = np.linspace(z_range[0], z_range[1], grid_points)
+    intensity = np.zeros((len(z_axis), len(x_axis)))
+
+    for iz, z in enumerate(z_axis):
+        for ix, x in enumerate(x_axis):
+            r = np.array([x, z])
+            tofs = np.linalg.norm(elem_pos - r, axis=1) / c
+            rel_delays = (tofs - tofs.min()) * work_fs
+            delayed = _delayed_channels(work, rel_delays)
+
+            compressed = _signed_root(delayed, order)  # (N, T)
+
+            power_sums = np.empty((order, delayed.shape[1]), dtype=float)
+            power_sums[0] = compressed.sum(axis=0)
+            powered = compressed.copy()
+            for k in range(1, order):
+                powered *= compressed
+                power_sums[k] = powered.sum(axis=0)
+
+            e_j = _elementary_from_power_sums(power_sums, order)
+            q = pref * e_j
+
+            # TEA over a TOF-centred gate (relative delays align energy near min TOF)
+            if gate_half > 0:
+                center = int(tofs.min() * work_fs)
+                lo = max(0, center - gate_half)
+                hi = min(q.shape[0], center + gate_half)
+                q_win = q[lo:hi]
+            else:
+                q_win = q
+            intensity[iz, ix] = float(np.dot(q_win, q_win)) if q_win.size else 0.0
+
+    peak_val = np.max(intensity)
+    intensity_db = 20 * np.log10(intensity / (peak_val + 1e-12) + 1e-12)
+    peak_idx = np.unravel_index(np.argmax(intensity), intensity.shape)
     peak_location = (float(x_axis[peak_idx[1]]), float(z_axis[peak_idx[0]]))
 
     return PAMResult(

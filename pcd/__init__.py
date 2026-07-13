@@ -2,7 +2,8 @@
 globalPCD — Passive cavitation detection (PCD) prototype toolkit.
 
 Synthetic signals, spectral features, regime classification, and passive
-acoustic mapping (GCC-PHAT) for histotripsy-related research.
+acoustic mapping (GCC-PHAT, DAS, higher-order DMAS) for histotripsy-related
+research.
 """
 
 from .signals import (
@@ -21,6 +22,7 @@ from .beamformer import (
     ArrayGeometry,
     PAMResult,
     delay_and_sum,
+    delay_multiply_and_sum,
     gcc_phat_map,
     simulate_array_signals,
 )
@@ -38,6 +40,7 @@ __all__ = [
     "ArrayGeometry",
     "PAMResult",
     "delay_and_sum",
+    "delay_multiply_and_sum",
     "gcc_phat_map",
     "simulate_array_signals",
 ]

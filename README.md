@@ -22,7 +22,7 @@ pytest tests/ -v
 | `pcd.signals` | Synthetic RF time-domain signals (`none`, `stable`, `inertial`) |
 | `pcd.features` | Spectral features (subharmonic, CI, dose proxies) |
 | `pcd.classifier` | Threshold-based regime classification |
-| `pcd.beamformer` | `gcc_phat_map`, `delay_and_sum`, `simulate_array_signals` |
+| `pcd.beamformer` | `gcc_phat_map`, `delay_and_sum`, `delay_multiply_and_sum` (HO-DMAS), `simulate_array_signals` |
 
 ## Full documentation
 
@@ -39,6 +39,17 @@ t, s = generate_signal("stable", SignalParams())
 feat = extract_features(t, s, f_drive=1e6)
 result = classify(feat)
 print(result.label, result.notes)
+```
+
+Higher-order DMAS mapping (Huber et al. 2025; default order 5):
+
+```python
+from pcd import ArrayGeometry, simulate_array_signals, delay_multiply_and_sum
+
+array = ArrayGeometry.linear(n_elements=16)
+signals = simulate_array_signals((0.0, 40e-3), array, fs=50e6, snr_db=25)
+pam = delay_multiply_and_sum(signals, fs=50e6, array=array, order=5)
+print(pam.peak_location)
 ```
 
 ## License

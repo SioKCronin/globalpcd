@@ -11,6 +11,7 @@ from pcd import (
     extract_features,
     classify, ClassifierConfig,
     ArrayGeometry, simulate_array_signals, gcc_phat_map,
+    delay_multiply_and_sum,
 )
 
 
@@ -223,3 +224,96 @@ class TestBeamformer:
                            grid_points=30)
         assert pam.intensity_db.shape == pam.intensity.shape
         assert np.max(pam.intensity_db) <= 0.1   # peak ≈ 0 dB
+
+    def test_dmas_rejects_invalid_order(self):
+        arr = ArrayGeometry.linear(n_elements=8)
+        signals = simulate_array_signals((0.0, 40e-3), arr, fs=50e6, duration=60e-6)
+        with pytest.raises(ValueError):
+            delay_multiply_and_sum(signals, fs=50e6, array=arr, order=0)
+        with pytest.raises(ValueError):
+            delay_multiply_and_sum(signals, fs=50e6, array=arr, order=16)
+
+    def test_dmas_elementary_matches_pairwise_products(self):
+        """Order-2 Macdonald/Newton path matches explicit pairwise mean."""
+        from pcd.beamformer import (
+            _dmas_prefactor,
+            _elementary_from_power_sums,
+            _signed_root,
+        )
+
+        rng = np.random.default_rng(0)
+        x = rng.normal(size=(6, 20))
+        order = 2
+        compressed = _signed_root(x, order)
+        e1 = compressed.sum(axis=0)
+        e2 = (compressed ** 2).sum(axis=0)
+        power_sums = np.vstack([e1, e2])
+        e_sym = _elementary_from_power_sums(power_sums, order)
+        pref = _dmas_prefactor(6, order)
+        q_fast = pref * e_sym
+
+        # Explicit E_2 / P(N, 2) (Huber / classic DMAS)
+        n = 6
+        q_ref = np.zeros(20)
+        for i in range(n):
+            for j in range(i + 1, n):
+                q_ref += compressed[i] * compressed[j]
+        q_ref /= (n * (n - 1))
+        np.testing.assert_allclose(q_fast, q_ref, rtol=1e-10, atol=1e-12)
+
+    def test_dmas_peak_near_source(self):
+        """DMAS-5 map peak should be within 3 mm of the true source."""
+        arr = ArrayGeometry.linear(n_elements=16)
+        source = (0.0, 40e-3)
+        signals = simulate_array_signals(
+            source_position=source,
+            array=arr,
+            fs=50e6,
+            duration=80e-6,
+            snr_db=25,
+            seed=0,
+        )
+        pam = delay_multiply_and_sum(
+            signals,
+            fs=50e6,
+            array=arr,
+            order=5,
+            x_range=(-12e-3, 12e-3),
+            z_range=(25e-3, 55e-3),
+            grid_points=41,
+            upsample=False,
+        )
+        px, pz = pam.peak_location
+        dist = np.sqrt((px - source[0]) ** 2 + (pz - source[1]) ** 2)
+        assert dist < 3e-3, \
+            f"DMAS peak {dist*1000:.1f} mm from source (threshold 3 mm)"
+
+    def test_dmas_order_two_builds_map(self):
+        """Classic DMAS (order 2) returns a finite map with a defined peak."""
+        arr = ArrayGeometry.linear(n_elements=16)
+        source = (0.0, 40e-3)
+        signals = simulate_array_signals(
+            source_position=source,
+            array=arr,
+            fs=50e6,
+            duration=80e-6,
+            snr_db=25,
+            seed=0,
+        )
+        pam = delay_multiply_and_sum(
+            signals,
+            fs=50e6,
+            array=arr,
+            order=2,
+            x_range=(-12e-3, 12e-3),
+            z_range=(25e-3, 55e-3),
+            grid_points=41,
+            upsample=False,
+        )
+        assert pam.intensity.shape == (41, 41)
+        assert np.isfinite(pam.intensity).all()
+        assert np.max(pam.intensity_db) <= 0.1
+        iz = int(np.argmin(np.abs(pam.z_axis - source[1])))
+        ix = int(np.argmin(np.abs(pam.x_axis - source[0])))
+        # True source should not be a deep null (sidelobes can still win at j=2)
+        assert pam.intensity_db[iz, ix] > -20.0
