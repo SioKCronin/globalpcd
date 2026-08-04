@@ -27,11 +27,13 @@ Thresholds below are calibrated against synthetic signals at 100 MHz
 sample rate, 20 dB SNR, normalised to [-1, 1]. Scale appropriately
 for experimental acquisition parameters.
 
-References
-----------
-- Gyöngy & Coussios, IEEE UFFC 2010
-- Haworth et al., JASA 2012
-- Jensen et al., Ultrasound Med Biol 2016
+Context (free papers)
+---------------------
+Stable vs inertial discrimination from spectral markers (subharmonic,
+broadband, dose proxies) is standard PCD practice. Open background:
+https://ora.ox.ac.uk/objects/uuid:af6f3c5a-bec5-4378-a617-c89d2b16d95d
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4526372/
+https://arxiv.org/abs/2601.07356
 """
 
 from dataclasses import dataclass

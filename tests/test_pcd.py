@@ -252,7 +252,7 @@ class TestBeamformer:
         pref = _dmas_prefactor(6, order)
         q_fast = pref * e_sym
 
-        # Explicit E_2 / P(N, 2) (Huber / classic DMAS)
+        # Explicit E_2 / P(N, 2) (classic DMAS / HO-DMAS order 2)
         n = 6
         q_ref = np.zeros(20)
         for i in range(n):

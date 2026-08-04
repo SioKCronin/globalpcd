@@ -4,6 +4,9 @@ globalPCD — Passive cavitation detection (PCD) prototype toolkit.
 Synthetic signals, spectral features, regime classification, and passive
 acoustic mapping (GCC-PHAT, DAS, higher-order DMAS) for histotripsy-related
 research.
+
+Background links use free papers only (arXiv / PMC / theses / preprints);
+see the repository README and each module's ``Context (free papers)`` block.
 """
 
 from .signals import (

@@ -49,6 +49,12 @@ spectrum. The ratio of broadband-to-harmonic energy (the cavitation
 index, CI) cleanly separates the two regimes. **No cavitation** shows
 only the noise floor.
 
+Free background (no paywall):
+[Oxford PAM thesis](https://ora.ox.ac.uk/objects/uuid:af6f3c5a-bec5-4378-a617-c89d2b16d95d),
+[PCI / lesion monitoring (PMC)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4526372/),
+[microbubble acoustic emissions (arXiv)](https://arxiv.org/abs/2512.22292).
+A fuller list lives in the root [`README.md`](../README.md).
+
 ---
 
 ## Modules
@@ -154,6 +160,10 @@ The classifier uses:
 Both thresholds are calibrated against synthetic signals at 100 MHz,
 20 dB SNR, normalised to [-1, 1]. Scale for your acquisition setup.
 
+Free background on spectral PCD markers and dose proxies:
+[Oxford PAM thesis](https://ora.ox.ac.uk/objects/uuid:af6f3c5a-bec5-4378-a617-c89d2b16d95d),
+[PCI / lesion monitoring (PMC)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4526372/).
+
 ### GCC-PHAT source localisation
 
 Generalised Cross-Correlation with PHAse Transform. For each element
@@ -172,6 +182,12 @@ amplitude bias and produces sharper TDOA peaks.
 
 **Localisation accuracy (synthetic, 16 elements, 25 dB SNR):**
 sub-millimetre error across test sources at 30–45 mm depth.
+
+Free background on array PAM and beamforming (no paywall):
+[Gyöngy Oxford thesis](https://ora.ox.ac.uk/objects/uuid:af6f3c5a-bec5-4378-a617-c89d2b16d95d),
+[arXiv PAM review](https://arxiv.org/abs/2412.02413),
+[angular-spectrum PAM (PMC)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5565398/),
+[HO-DMAS preprint](https://ssrn.com/abstract=5029537).
 
 ---
 

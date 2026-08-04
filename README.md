@@ -4,6 +4,19 @@
 
 The hard part is not detecting that cavitation exists — it is knowing, in real time, **where** it is and **what kind** it is. Therapy pulses, tissue clutter, and bubble clouds all radiate into the same receive array; stable and inertial regimes overlap spectrally; and on diagnostic linear arrays, conventional delay-and-sum maps are axially blurred with high sidelobes, while sharper adaptive beamformers are often too slow for closed-loop monitoring. Until dose, location, and regime can be trusted together, safe automated feedback remains an open problem.
 
+## Free background reading
+
+This repo links open full texts only (arXiv, PMC, theses, preprints) — no paywalled journal citations.
+
+| Topic | Free paper |
+|-------|------------|
+| Passive cavitation mapping overview | [Gyöngy Oxford thesis](https://ora.ox.ac.uk/objects/uuid:af6f3c5a-bec5-4378-a617-c89d2b16d95d) |
+| Stable vs inertial / PCI monitoring | [PMC4526372](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4526372/) |
+| Angular-spectrum PAM | [PMC5565398](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5565398/) |
+| PAM beamforming (arXiv) | [2412.02413](https://arxiv.org/abs/2412.02413), [2412.02327](https://arxiv.org/abs/2412.02327), [2601.07356](https://arxiv.org/abs/2601.07356) |
+| HO-DMAS for PCM (preprint) | [SSRN 5029537](https://ssrn.com/abstract=5029537) |
+| Microbubble acoustic emissions | [arXiv 2512.22292](https://arxiv.org/abs/2512.22292) |
+
 ## Install
 
 ```bash
@@ -43,7 +56,7 @@ result = classify(feat)
 print(result.label, result.notes)
 ```
 
-Higher-order DMAS mapping (Huber et al. 2025; default order 5):
+Higher-order DMAS mapping (default order 5; open preprint https://ssrn.com/abstract=5029537):
 
 ```python
 from pcd import ArrayGeometry, simulate_array_signals, delay_multiply_and_sum

@@ -11,6 +11,14 @@ Extracts:
   - Cavitation index (CI)       (ratio: broadband / harmonic)
   - Inertial cavitation dose proxy (ICD)
   - Stable cavitation dose proxy   (SCD)
+
+Context (free papers)
+---------------------
+Subharmonic / ultraharmonic vs broadband markers, and dose-style
+integrals, are standard PCD practice. Open background:
+https://ora.ox.ac.uk/objects/uuid:af6f3c5a-bec5-4378-a617-c89d2b16d95d
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4526372/
+https://arxiv.org/abs/2601.07356
 """
 
 import numpy as np

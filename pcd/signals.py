@@ -10,6 +10,14 @@ Three cavitation regimes:
   - none:     background noise only
   - stable:   harmonics + subharmonic (f/2) + ultraharmonics (3f/2)
   - inertial: broadband noise elevation (wideband collapse signature)
+
+Context (free papers)
+---------------------
+These regimes are didactic synthetics, not measured RF. Open
+background on what real PCD emissions look like:
+https://ora.ox.ac.uk/objects/uuid:af6f3c5a-bec5-4378-a617-c89d2b16d95d
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4526372/
+https://arxiv.org/abs/2512.22292
 """
 
 import numpy as np

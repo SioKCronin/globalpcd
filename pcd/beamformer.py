@@ -11,7 +11,7 @@ Algorithms
 2. delay_and_sum  (classic TEA-style DAS, for comparison)
    Coherent delay-and-sum on analytic signals.
 
-3. delay_multiply_and_sum  (HO-DMAS, Huber et al. 2025)
+3. delay_multiply_and_sum  (HO-DMAS)
    Higher-order Delay Multiply and Sum with linear complexity via
    Macdonald determinants of power sums. Order j=1 recovers DAS-like
    TEA; j=2 is classic DMAS; j=3–5 is the recommended monitoring
@@ -23,18 +23,19 @@ Coordinate system
    - Tissue and imaging grid at z > 0 (positive axial).
    - Lateral axis is x, symmetric about 0.
 
-References
-----------
-- Knapp & Carter, "The generalised correlation method for estimation
-  of time delay", IEEE Trans ASSP, 1976.
-- Salgaonkar et al., "Passive acoustic mapping with the angular spectrum
-  method", JASA, 2009.
-- Gyöngy & Coussios, "Passive cavitation imaging with ultrasound arrays",
-  IEEE UFFC, 2010.
-- Huber et al., "Passive cavitation mapping … higher order delay multiply
-  and sum … linear complexity", Ultrasonics 153:107653, 2025.
-- Lu et al., "Delay multiply and sum … linear-array passive acoustic
-  mapping", Med Phys 46:4441–4454, 2019.
+Context (free papers)
+---------------------
+Array-based passive cavitation mapping is the clinical motivation for
+this module — open overview in Gyöngy's Oxford thesis:
+https://ora.ox.ac.uk/objects/uuid:af6f3c5a-bec5-4378-a617-c89d2b16d95d
+and recent open PAM beamforming reviews on arXiv, e.g.
+https://arxiv.org/abs/2412.02413 and https://arxiv.org/abs/2412.02327.
+Angular-spectrum PAM (open full text):
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5565398/
+HO-DMAS with linear complexity (open preprint):
+https://ssrn.com/abstract=5029537
+Same Newton–Girard HO-DMAS idea in open work:
+https://arxiv.org/abs/2203.14906
 """
 
 from __future__ import annotations
@@ -260,7 +261,7 @@ def delay_and_sum(
 
 
 # ---------------------------------------------------------------------------
-# Higher-order Delay Multiply and Sum (Huber et al. 2025)
+# Higher-order Delay Multiply and Sum (linear-complexity HO-DMAS)
 # ---------------------------------------------------------------------------
 
 def _signed_root(x: np.ndarray, order: int) -> np.ndarray:
@@ -275,7 +276,7 @@ def _elementary_from_power_sums(power_sums: np.ndarray, order: int) -> np.ndarra
     Elementary symmetric sum E_j(t) from power sums via Newton–Girard.
 
     ``power_sums`` has shape (j, T) with power_sums[k-1] == e_k(t).
-    Returns E_j with shape (T,). Equivalent to Macdonald det/j! (Huber eq. 17)
+    Returns E_j with shape (T,). Equivalent to Macdonald det / j!
     but vectorised over time.
     """
     # E[k] holds E_k for k = 0..j; E_0 = 1
@@ -307,7 +308,7 @@ def _upsample_for_dmas(
     """
     Upsample RF channels to accommodate spectral stretching from products.
 
-    Huber empirical rule: fs ≈ 5 * f_high * (1 + 0.1*(j-1)).
+    Empirical rule: fs ≈ 5 * f_high * (1 + 0.1*(j-1)).
     When ``f_high`` is None, scale the current rate by (1 + 0.1*(j-1)).
     """
     if order <= 1:
@@ -369,10 +370,10 @@ def delay_multiply_and_sum(
     """
     Higher-order Delay Multiply and Sum (DMASj) passive cavitation map.
 
-    Implements Huber et al. (Ultrasonics 2025) linear-complexity HO-DMAS:
-    signed j-th-root compression, power sums, and Macdonald / Newton–Girard
-    elementary symmetric sums so order-j products cost O(j² · N · T) per
-    pixel instead of combinatorial O(N^j).
+    Linear-complexity HO-DMAS: signed j-th-root compression, power sums,
+    and Macdonald / Newton–Girard elementary symmetric sums so order-j
+    products cost O(j² · N · T) per pixel instead of combinatorial O(N^j).
+    Open preprint of this formulation: https://ssrn.com/abstract=5029537
 
     Intensity uses time-exposure acoustics (TEA): sum of q_j(t)^2 over a
     TOF-centred gate at each pixel (full window if ``gate_s`` is None and
@@ -387,7 +388,7 @@ def delay_multiply_and_sum(
     array : ArrayGeometry
     order : int
         DMAS order j. 1 ≈ DAS TEA, 2 = classic DMAS, 3–5 recommended
-        for monitoring (Huber: order 10 can fail at low SNR).
+        for monitoring (order 10 can fail at low SNR).
     x_range, z_range : (float, float)
         Grid extents in metres.
     grid_points : int
@@ -396,9 +397,9 @@ def delay_multiply_and_sum(
         Speed of sound (m/s).
     upsample : bool
         If True, resample channels to accommodate product-induced
-        bandwidth growth (Huber §2.3).
+        bandwidth growth.
     f_high : float or None
-        Upper transducer bandwidth (Hz) for the Huber sampling rule.
+        Upper transducer bandwidth (Hz) for the sampling rule above.
         If None, scale ``fs`` by (1 + 0.1*(j-1)).
     gate_s : float or None
         Half-width of the TEA integration gate in seconds, centred on

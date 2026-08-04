@@ -28,14 +28,13 @@ Coordinate system
    - Tissue and imaging grid at z > 0 (positive axial).
    - Lateral axis is x, symmetric about 0.
 
-References
-----------
-- Knapp & Carter, "The generalised correlation method for estimation
-  of time delay", IEEE Trans ASSP, 1976.
-- Salgaonkar et al., "Passive acoustic mapping with the angular spectrum
-  method", JASA, 2009.
-- Gyöngy & Coussios, "Passive cavitation imaging with ultrasound arrays",
-  IEEE UFFC, 2010.
+Context (free papers)
+---------------------
+Array-based passive cavitation mapping — open overview:
+https://ora.ox.ac.uk/objects/uuid:af6f3c5a-bec5-4378-a617-c89d2b16d95d
+PAM beamforming on arXiv: https://arxiv.org/abs/2412.02413
+Angular-spectrum PAM (open full text):
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5565398/
 """
 
 import numpy as np
