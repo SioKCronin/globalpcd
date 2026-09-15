@@ -14,7 +14,7 @@ from .signals import (
     generate_signal,
     iter_signals,
 )
-from .features import SpectralFeatures, extract_features
+from .features import SpectralFeatures, active_burst_window, extract_features
 from .classifier import (
     CavitationLabel,
     ClassificationResult,
@@ -44,6 +44,7 @@ __all__ = [
     "generate_signal",
     "iter_signals",
     "SpectralFeatures",
+    "active_burst_window",
     "extract_features",
     "CavitationLabel",
     "ClassificationResult",

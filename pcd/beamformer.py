@@ -528,8 +528,14 @@ def simulate_array_signals(
     n_samples  = int(fs * duration)
     n_elements = len(array.element_positions)
 
-    # Source waveform: generate at ~35% of receive window so it fits with delays
-    src_params = SignalParams(fs=fs, duration=duration * 0.35, snr_db=50, seed=seed)
+    # Source waveform duration fraction of the receive window (TOF headroom).
+    # Use the same SNR calibration as direct generate_signal paths (≈20 dB):
+    # snr_db=50 here collapses CI because residual drive leakage dominates
+    # after peak-normalisation, then channel noise is added separately below.
+    SOURCE_DURATION_FRACTION = 0.35
+    src_params = SignalParams(
+        fs=fs, duration=duration * SOURCE_DURATION_FRACTION, snr_db=20, seed=seed
+    )
     _, source_waveform = generate_signal(regime, src_params)   # type: ignore
     n_src = len(source_waveform)
 

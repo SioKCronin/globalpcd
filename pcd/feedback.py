@@ -35,7 +35,7 @@ import numpy as np
 
 from .beamformer import ArrayGeometry, gcc_phat_map
 from .classifier import ClassifierConfig, classify
-from .features import extract_features
+from .features import active_burst_window, extract_features
 
 SCHEMA_VERSION = "1.0.0"
 
@@ -92,6 +92,9 @@ class FeedbackConfig:
     ring_frames: int = 4
     # Channel index used for spectral features when multi-channel
     feature_channel: int = 0
+    # Crop RF to the active energy burst before features (fixes array-path
+    # CI dilution when the source only fills part of the receive window)
+    window_to_burst: bool = True
 
 
 class PCDFeedbackEngine:
@@ -156,7 +159,12 @@ class PCDFeedbackEngine:
             t_feat = time.perf_counter()
             ch = int(np.clip(self.config.feature_channel, 0, data.shape[0] - 1))
             signal = data[ch]
+            if self.config.window_to_burst:
+                i0, i1 = active_burst_window(signal)
+                signal = signal[i0:i1]
             n = signal.shape[0]
+            if n < 8:
+                raise ValueError("feature window too short after burst crop")
             t_axis = np.arange(n, dtype=float) / self.config.fs
             features = extract_features(
                 t_axis, signal, f_drive=self.config.f_drive
@@ -170,8 +178,12 @@ class PCDFeedbackEngine:
 
             regime = _map_regime(result.label)
             confidence = float(result.confidence)
-            dose_proxy = float(features.icd if regime == CavitationRegime.INERTIAL
-                               else features.scd)
+            if regime == CavitationRegime.INERTIAL:
+                dose_proxy = float(features.icd)
+            elif regime == CavitationRegime.MIXED:
+                dose_proxy = float(max(features.icd, features.scd))
+            else:
+                dose_proxy = float(features.scd)
 
             # --- localize (decimated) ---
             location = self._last_location

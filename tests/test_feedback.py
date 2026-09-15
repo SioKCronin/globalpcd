@@ -151,3 +151,81 @@ class TestFeedbackEngine:
         wall_ms = (time.perf_counter() - t0) * 1e3
         assert reading.latency_ms <= wall_ms + 5.0
         assert engine.last_stage_latency_ms["total_ms"] == reading.latency_ms
+
+    def test_inertial_detected_through_array_path(self):
+        """Burst-windowed features should not dilute CI on array-simulated RF."""
+        array = ArrayGeometry.linear(n_elements=8, pitch=1.5e-3)
+        engine = PCDFeedbackEngine(
+            FeedbackConfig(
+                fs=25e6,
+                f_drive=1e6,
+                localize_every_n=0,
+                deadline_ms=30_000,
+                window_to_burst=True,
+            ),
+            array=array,
+        )
+        _, channels = next(
+            iter_array_frames(
+                (0.0, 35e-3),
+                array,
+                regimes="inertial",
+                fs=25e6,
+                duration=60e-6,
+                snr_db=30,
+                n_frames=1,
+            )
+        )
+        reading = engine.process_frame(channels, trigger_timestamp=0.0)
+        assert reading.status != ReadingStatus.NO_READING
+        assert reading.regime.value in {"inertial", "mixed"}
+
+    def test_array_path_without_burst_window_under_detects(self):
+        """Documents the dilution bug: full-buffer features miss inertial."""
+        array = ArrayGeometry.linear(n_elements=8, pitch=1.5e-3)
+        engine = PCDFeedbackEngine(
+            FeedbackConfig(
+                fs=25e6,
+                f_drive=1e6,
+                localize_every_n=0,
+                deadline_ms=30_000,
+                window_to_burst=False,
+            ),
+            array=array,
+        )
+        _, channels = next(
+            iter_array_frames(
+                (0.0, 35e-3),
+                array,
+                regimes="inertial",
+                fs=25e6,
+                duration=60e-6,
+                snr_db=30,
+                n_frames=1,
+            )
+        )
+        reading = engine.process_frame(channels, trigger_timestamp=0.0)
+        # Without windowing, inertial is typically collapsed to none
+        assert reading.regime.value in {"none", "stable"}
+
+
+class TestActiveBurstWindow:
+    def test_full_buffer_when_energy_everywhere(self):
+        from pcd import active_burst_window, generate_signal, SignalParams
+
+        _, signal = generate_signal(
+            "inertial", SignalParams(fs=20e6, duration=40e-6)
+        )
+        start, end = active_burst_window(signal)
+        assert start == 0
+        assert end == len(signal)
+
+    def test_crops_sparse_array_burst(self):
+        from pcd import active_burst_window
+
+        n = 1000
+        signal = np.zeros(n)
+        signal[300:550] = 1.0  # dense burst well above threshold
+        start, end = active_burst_window(signal)
+        assert 250 <= start <= 320
+        assert 530 <= end <= 600

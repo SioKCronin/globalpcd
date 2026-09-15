@@ -45,6 +45,44 @@ class SpectralFeatures:
     psd: np.ndarray             # Power spectral density (dB)
 
 
+def active_burst_window(
+    signal: np.ndarray,
+    threshold_ratio: float = 0.15,
+    pad_fraction: float = 0.02,
+    min_fraction: float = 0.15,
+) -> tuple[int, int]:
+    """
+    Sample span ``[start, end)`` covering the main RF energy.
+
+    Array-simulated frames only fill a fraction of the receive buffer
+    (TOF-aligned source burst). Estimating broadband / CI over the full
+    buffer dilutes inertial markers; windowing to the active burst keeps
+    features calibrated against direct ``generate_signal`` paths.
+
+    If no clear burst is found (e.g. noise-only), returns the full buffer.
+    """
+    n = int(signal.shape[0])
+    if n == 0:
+        return 0, 0
+
+    env = np.abs(np.asarray(signal, dtype=float))
+    peak = float(np.max(env))
+    if peak <= 0.0:
+        return 0, n
+
+    idx = np.flatnonzero(env >= threshold_ratio * peak)
+    if idx.size == 0:
+        return 0, n
+
+    start = int(idx[0])
+    end = int(idx[-1]) + 1
+    if (end - start) < min_fraction * n:
+        return 0, n
+
+    pad = int(pad_fraction * n)
+    return max(0, start - pad), min(n, end + pad)
+
+
 def extract_features(
     t: np.ndarray,
     signal: np.ndarray,

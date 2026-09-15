@@ -82,11 +82,21 @@ for frame_id, t, signal in iter_signals("inertial", SignalParams(fs=20e6), n_fra
     print(reading.status, reading.regime, reading.confidence, f"{reading.latency_ms:.2f} ms")
 ```
 
-Mocked controller demo (pull + push paths):
+Mocked controller demo (ramp / hold / reduce-pressure from readings only):
 
 ```bash
-.venv/bin/python scripts/feedback_demo.py
+.venv/bin/python examples/mock_controller.py
 ```
+
+Also: `scripts/feedback_demo.py` for pull + push path smoke tests.
+
+## Collaboration
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). Short version: this layer is meant to
+be adoptable by any therapy controller — OpenLIFU included — without owning
+pulse policy. Sensing stays here; actuation stays with the platform. Real-tissue
+validation is welcome as collaboration and is intentionally not claimed by the
+synthetic default path.
 
 ## License
 
