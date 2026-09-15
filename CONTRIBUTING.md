@@ -5,6 +5,16 @@ prototype for passive cavitation detection and a controller-facing feedback
 layer — meant to be useful to histotripsy and therapeutic-ultrasound groups
 without locking anyone into one vendor stack.
 
+## Human contact required
+
+We only review pull requests (and issue threads that need back-and-forth) when
+there is a **reachable human** who can answer clarifying questions about the
+change — design intent, test evidence, and how it was validated.
+
+Automated or unattended agent-only PRs with no human contact path will be
+closed. If an agent helped write the code, that is fine; name the human
+maintainer who will respond on the PR.
+
 ## What this repo is (and is not)
 
 - **Is:** synthetic-data toolkit + a `PCDReading` contract a therapy controller
@@ -38,6 +48,7 @@ to try the reading contract against your receive path, open an issue or PR with:
 - how your controller wants to pull or subscribe
 - sample rates / PRF budget you need to hit
 - whether you can share synthetic or anonymised channel snippets for calibration
+- a human contact who will answer follow-ups on the thread
 
 Hardware bring-up and tissue validation are welcome as collaborations; they are
 intentionally out of scope for a pure-software default path.
