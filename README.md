@@ -34,10 +34,12 @@ pytest tests/ -v
 
 | Module | Role |
 |--------|------|
-| `pcd.signals` | Synthetic RF time-domain signals (`none`, `stable`, `inertial`) |
+| `pcd.signals` | Synthetic RF time-domain signals (`none`, `stable`, `inertial`); `iter_signals` stream |
 | `pcd.features` | Spectral features (subharmonic, CI, dose proxies) |
-| `pcd.classifier` | Threshold-based regime classification |
+| `pcd.classifier` | Threshold-based regime classification (with confidence) |
 | `pcd.beamformer` | `gcc_phat_map`, `delay_and_sum`, `delay_multiply_and_sum` (HO-DMAS), `simulate_array_signals` |
+| `pcd.feedback` | Live/synthetic feedback layer → `PCDReading` for a therapy controller |
+| `pcd.streams` | Multi-channel synthetic frame stream for localization tests |
 
 ## Full documentation
 
@@ -65,6 +67,25 @@ array = ArrayGeometry.linear(n_elements=16)
 signals = simulate_array_signals((0.0, 40e-3), array, fs=50e6, snr_db=25)
 pam = delay_multiply_and_sum(signals, fs=50e6, array=array, order=5)
 print(pam.peak_location)
+```
+
+## Feedback layer
+
+`pcd.feedback` sits between a receive array (or synthetic stream) and a therapy controller. It emits structured `PCDReading` values — regime, confidence, optional location, measured latency — and never chooses the next pulse.
+
+```python
+from pcd import FeedbackConfig, PCDFeedbackEngine, iter_signals, SignalParams
+
+engine = PCDFeedbackEngine(FeedbackConfig(fs=20e6, localize_every_n=0))
+for frame_id, t, signal in iter_signals("inertial", SignalParams(fs=20e6), n_frames=3):
+    reading = engine.process_frame(signal, trigger_timestamp=frame_id * 0.01)
+    print(reading.status, reading.regime, reading.confidence, f"{reading.latency_ms:.2f} ms")
+```
+
+Mocked controller demo (pull + push paths):
+
+```bash
+.venv/bin/python scripts/feedback_demo.py
 ```
 
 ## License

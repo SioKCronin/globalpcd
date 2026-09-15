@@ -20,9 +20,13 @@ https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4526372/
 https://arxiv.org/abs/2512.22292
 """
 
-import numpy as np
-from dataclasses import dataclass
+from __future__ import annotations
+
+from collections.abc import Iterator, Sequence
+from dataclasses import dataclass, replace
 from typing import Literal
+
+import numpy as np
 
 CavitationRegime = Literal["none", "stable", "inertial"]
 
@@ -145,3 +149,48 @@ def generate_signal(
         signal = signal / peak
 
     return t, signal
+
+
+def iter_signals(
+    regimes: Sequence[CavitationRegime] | CavitationRegime,
+    params: SignalParams | None = None,
+    *,
+    n_frames: int | None = None,
+    seed_step: int = 1,
+) -> Iterator[tuple[int, np.ndarray, np.ndarray]]:
+    """
+    Stream synthetic PCD frames for feedback-layer testing (no hardware).
+
+    Yields ``(frame_id, t, signal)`` where each frame is an independent
+    window from :func:`generate_signal`. Pass a single regime to hold it
+    fixed, or a sequence to cycle (e.g. ``["none", "stable", "inertial"]``).
+
+    Parameters
+    ----------
+    regimes :
+        One regime, or a sequence cycled across frames.
+    params :
+        Base generation parameters. ``seed`` advances by ``seed_step``
+        each frame so successive windows are not identical.
+    n_frames :
+        Stop after this many frames. ``None`` yields forever.
+    seed_step :
+        Increment applied to ``params.seed`` per frame.
+    """
+    if params is None:
+        params = SignalParams()
+
+    if isinstance(regimes, str):
+        cycle: Sequence[CavitationRegime] = (regimes,)
+    else:
+        cycle = tuple(regimes)
+        if not cycle:
+            raise ValueError("regimes sequence must be non-empty")
+
+    frame_id = 0
+    while n_frames is None or frame_id < n_frames:
+        regime = cycle[frame_id % len(cycle)]
+        frame_params = replace(params, seed=params.seed + frame_id * seed_step)
+        t, signal = generate_signal(regime, frame_params)
+        yield frame_id, t, signal
+        frame_id += 1

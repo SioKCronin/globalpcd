@@ -1,18 +1,18 @@
 """
 globalPCD — Passive cavitation detection (PCD) prototype toolkit.
 
-Synthetic signals, spectral features, regime classification, and passive
-acoustic mapping (GCC-PHAT, DAS, higher-order DMAS) for histotripsy-related
-research.
+Synthetic signals, spectral features, regime classification, passive
+acoustic mapping (GCC-PHAT, DAS, higher-order DMAS), and a feedback
+layer that emits structured PCDReading values for a therapy controller.
 
 Background links use free papers only (arXiv / PMC / theses / preprints);
 see the repository README and each module's ``Context (free papers)`` block.
 """
 
 from .signals import (
-    CavitationRegime,
     SignalParams,
     generate_signal,
+    iter_signals,
 )
 from .features import SpectralFeatures, extract_features
 from .classifier import (
@@ -29,11 +29,20 @@ from .beamformer import (
     gcc_phat_map,
     simulate_array_signals,
 )
+from .feedback import (
+    SCHEMA_VERSION,
+    CavitationRegime,
+    FeedbackConfig,
+    PCDFeedbackEngine,
+    PCDReading,
+    ReadingStatus,
+)
+from .streams import iter_array_frames
 
 __all__ = [
-    "CavitationRegime",
     "SignalParams",
     "generate_signal",
+    "iter_signals",
     "SpectralFeatures",
     "extract_features",
     "CavitationLabel",
@@ -46,6 +55,13 @@ __all__ = [
     "delay_multiply_and_sum",
     "gcc_phat_map",
     "simulate_array_signals",
+    "SCHEMA_VERSION",
+    "CavitationRegime",
+    "FeedbackConfig",
+    "PCDFeedbackEngine",
+    "PCDReading",
+    "ReadingStatus",
+    "iter_array_frames",
 ]
 
 __version__ = "0.1.0"
