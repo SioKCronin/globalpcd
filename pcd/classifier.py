@@ -12,6 +12,9 @@ Classifies each signal window as:
 Classification logic
 --------------------
   stable   → subharmonic_amp > subharmonic_threshold
+               AND subharmonic_snr > subharmonic_snr_threshold
+               (peak over local noise floor; stops noise-only windows
+               from reading as stable when window length changes)
   inertial → cavitation_index > ci_inertial_threshold
                (broadband/harmonic ratio; robust to normalisation)
   mixed    → both criteria met
@@ -62,6 +65,10 @@ class ClassifierConfig:
     """
     subharmonic_threshold: float = 0.005
     ci_inertial_threshold: float = 1.3    # separates noise (≤1.16) from inertial (≥1.49)
+    # Subharmonic peak must also stand this far above its local noise
+    # floor. Synthetic noise-only windows reach ≤ ~5; stable windows ≥ ~40
+    # across the histotripsy and LIFU (200–650 kHz) presets.
+    subharmonic_snr_threshold: float = 10.0
 
 
 @dataclass
@@ -95,14 +102,16 @@ def classify(
     if config is None:
         config = ClassifierConfig()
 
-    stable_present   = features.subharmonic_amp     > config.subharmonic_threshold
+    snr_ratio = features.subharmonic_snr / config.subharmonic_snr_threshold
+    amp_ratio = features.subharmonic_amp / config.subharmonic_threshold
+    # Distance to the stable criterion is set by the weaker of its two gates.
+    stable_ratio = min(amp_ratio, snr_ratio)
+    stable_present   = stable_ratio > 1.0
     inertial_present = features.cavitation_index    > config.ci_inertial_threshold
 
     if stable_present and inertial_present:
         label: CavitationLabel = "mixed"
-        conf_stable   = _sigmoid_confidence(
-            features.subharmonic_amp / config.subharmonic_threshold
-        )
+        conf_stable   = _sigmoid_confidence(stable_ratio)
         conf_inertial = _sigmoid_confidence(
             features.cavitation_index / config.ci_inertial_threshold
         )
@@ -122,9 +131,7 @@ def classify(
 
     elif stable_present:
         label = "stable"
-        confidence = _sigmoid_confidence(
-            features.subharmonic_amp / config.subharmonic_threshold
-        )
+        confidence = _sigmoid_confidence(stable_ratio)
         notes = (
             f"Subharmonic amplitude={features.subharmonic_amp:.4f} "
             "at f/2. Stable oscillation regime."
@@ -134,7 +141,7 @@ def classify(
         label = "none"
         # Confidence = how far below both thresholds we are
         margin = 1.0 - max(
-            features.subharmonic_amp / config.subharmonic_threshold,
+            stable_ratio,
             features.cavitation_index / config.ci_inertial_threshold,
         )
         confidence = max(0.0, min(1.0, margin))

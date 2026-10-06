@@ -1,4 +1,4 @@
-# PCDReading contract (schema 1.0.0)
+# PCDReading contract (schema 1.1.0)
 
 This is the piece a therapy controller (OpenLIFU or otherwise) integrates
 against. globalPCD decides **what happened acoustically** and **how much to
@@ -11,17 +11,18 @@ Python: `PCDReading.to_dict()` / `SCHEMA_VERSION`.
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `schema_version` | string | Currently `"1.0.0"` |
+| `schema_version` | string | Currently `"1.1.0"`; any `1.x` validates |
 | `frame_id` | int ≥ 0 | Monotonic per engine instance |
 | `timestamp` | float | Pulse-trigger time (s), controller clock |
 | `status` | `ok` / `degraded` / `no_reading` | See fail-safe below |
 | `regime` | `none` / `stable` / `inertial` / `mixed` / `unknown` | Acoustic judgment |
 | `confidence` | 0–1 | Distance-to-threshold heuristic (not a calibrated probability) |
-| `location_estimate` | number[] or null | Array coords (m); **null for single-element ingest** |
+| `location_estimate` | number[] or null | Array coords (m); **null for single-element ingest and for `none`/`unknown` frames** |
 | `location_uncertainty` | number or null | Spot-size proxy (m) |
 | `dose_proxy` | number or null | SCD/ICD-style energy proxy |
 | `latency_ms` | number ≥ 0 | Measured compute time for this frame |
 | `stage_latency_ms` | object | Optional per-stage timings |
+| `location_frame_id` | int or null | *(1.1.0)* Frame the location was computed on. `== frame_id` when fresh; smaller when carried forward under decimated localization; null with no location. Controllers should check its age before trusting the position. |
 
 ## Fail-safe
 
@@ -38,10 +39,13 @@ Suggested controller mapping for **neuromodulation safety** (research-only):
 
 ## Versioning
 
-- **1.0.0** is the current contract.
-- **Patch** (1.0.x): docs/typos only.
-- **Minor** (1.x): additive fields; old controllers may ignore unknowns.
-- **Major** (2.0): renamed/removed fields or changed enums. Bump `SCHEMA_VERSION` and `$schema` `const`.
+- **1.1.0** is the current contract (adds optional `location_frame_id`).
+- **Patch** (1.x.y): docs/typos only.
+- **Minor** (1.x): additive, optional fields only. Consumers **must ignore unknown fields**;
+  the JSON Schema allows additional properties and accepts any `1.x.y` version, so a
+  1.0 validator keeps working against newer 1.x readings.
+- **Major** (2.0): renamed/removed fields or changed enums. Bump `SCHEMA_VERSION` and the
+  schema's `schema_version` pattern.
 
 Do not fork an Openwater-specific schema; fold their field names into 1.x if needed.
 

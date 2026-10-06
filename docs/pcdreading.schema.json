@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/SioKCronin/globalPCD/docs/pcdreading.schema.json",
   "title": "PCDReading",
-  "description": "Versioned cavitation-sensing contract for a therapy controller. globalPCD emits this; it never chooses the next pulse.",
+  "description": "Versioned cavitation-sensing contract for a therapy controller. globalPCD emits this; it never chooses the next pulse. Minor versions (1.x) only add optional fields; consumers must ignore unknown fields.",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "schema_version",
     "frame_id",
@@ -21,8 +21,8 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "const": "1.0.0",
-      "description": "Semver of this contract. Controllers should reject unknown major versions."
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$",
+      "description": "Semver of this contract. Any 1.x reading validates; controllers should reject unknown major versions."
     },
     "frame_id": {
       "type": "integer",
@@ -68,6 +68,11 @@
     "stage_latency_ms": {
       "type": "object",
       "additionalProperties": { "type": "number" }
+    },
+    "location_frame_id": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "(1.1.0) frame_id on which location_estimate was computed: equals frame_id when fresh, smaller when carried forward under decimation, null when there is no location. Optional; absent in 1.0.0 readings."
     }
   }
 }

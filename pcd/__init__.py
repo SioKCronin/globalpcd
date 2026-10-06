@@ -87,5 +87,5 @@ __all__ = [
     "write_hydrophone_wav",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __license__ = "MIT"

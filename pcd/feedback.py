@@ -37,7 +37,7 @@ from .beamformer import ArrayGeometry, gcc_phat_map
 from .classifier import ClassifierConfig, classify
 from .features import active_burst_window, extract_features
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 
 
 class CavitationRegime(Enum):
@@ -69,6 +69,10 @@ class PCDReading:
     dose_proxy: Optional[float]
     latency_ms: float  # measured end-to-end for this frame
     stage_latency_ms: dict[str, float] = field(default_factory=dict)
+    # Frame on which location_estimate was computed (1.1.0). Equal to
+    # frame_id when localized this frame; smaller when carried forward
+    # under decimation; None when there is no location.
+    location_frame_id: Optional[int] = None
 
     def to_dict(self) -> dict:
         """JSON-serialisable form of the 1.0.0 contract (see docs/PCDREADING.md)."""
@@ -85,6 +89,7 @@ class PCDReading:
             "dose_proxy": self.dose_proxy,
             "latency_ms": self.latency_ms,
             "stage_latency_ms": dict(self.stage_latency_ms),
+            "location_frame_id": self.location_frame_id,
         }
 
 
@@ -133,6 +138,7 @@ class PCDFeedbackEngine:
         self._ring: Deque[np.ndarray] = deque(maxlen=max(0, self.config.ring_frames))
         self._last_location: Optional[tuple[float, ...]] = None
         self._last_location_uncertainty: Optional[float] = None
+        self._last_location_frame_id: Optional[int] = None
         self.last_stage_latency_ms: dict[str, float] = {}
 
     def subscribe(self, callback: Callable[[PCDReading], None]) -> None:
@@ -203,12 +209,22 @@ class PCDFeedbackEngine:
                 dose_proxy = float(features.scd)
 
             # --- localize (decimated) ---
-            location = self._last_location
-            loc_unc = self._last_location_uncertainty
+            # Only frames with detected cavitation carry a location. A
+            # none/unknown frame never reports (or refreshes) a position,
+            # so a stale estimate is never presented as current activity.
+            active = regime in (
+                CavitationRegime.STABLE,
+                CavitationRegime.INERTIAL,
+                CavitationRegime.MIXED,
+            )
+            location = self._last_location if active else None
+            loc_unc = self._last_location_uncertainty if active else None
+            loc_frame = self._last_location_frame_id if active else None
             ran_localize = False
             every = self.config.localize_every_n
             if (
-                every > 0
+                active
+                and every > 0
                 and self.array is not None
                 and data.shape[0] >= 2
                 and (frame_id % every == 0)
@@ -224,8 +240,10 @@ class PCDFeedbackEngine:
                 )
                 location = (float(pam.peak_location[0]), float(pam.peak_location[1]))
                 loc_unc = _spot_size_m(pam.intensity_db, pam.x_axis, pam.z_axis)
+                loc_frame = frame_id
                 self._last_location = location
                 self._last_location_uncertainty = loc_unc
+                self._last_location_frame_id = frame_id
                 stages["localize_ms"] = (time.perf_counter() - t_loc) * 1e3
                 ran_localize = True
             else:
@@ -259,7 +277,8 @@ class PCDFeedbackEngine:
                 status = ReadingStatus.DEGRADED
             # Partial data: multi-channel expected location but never ran yet
             if (
-                self.array is not None
+                active
+                and self.array is not None
                 and data.shape[0] >= 2
                 and location is None
                 and not ran_localize
@@ -278,6 +297,7 @@ class PCDFeedbackEngine:
                 dose_proxy=dose_proxy,
                 latency_ms=latency_ms,
                 stage_latency_ms=stages,
+                location_frame_id=loc_frame if location is not None else None,
             )
             self._emit(reading)
             return reading

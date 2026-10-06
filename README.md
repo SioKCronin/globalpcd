@@ -75,8 +75,12 @@ Prototype copies and a browser visualiser live under [`files/`](files/README.md)
 
 The public OpenLIFU SDK drives **transmit** (TX7332 + HV), not a receive array.
 Phase 1 is a single PCD hydrophone + DAQ feeding this engine. Optional:
-pace frames to an OpenLIFU TX trigger while RF still comes from a file or
+pace frames alongside an OpenLIFU TX module while RF still comes from a file or
 synthetic source (`examples/openlifu_trigger_session.py`).
+
+`OpenLIFUTriggerClock` is **observe-only by default**: it never arms or starts
+the transmitter. Arming TX is an actuation decision for the therapy platform;
+pass `allow_tx_start=True` (or `--start-tx` in the example) only on a bench.
 
 `pip install -e ".[openlifu]"` is optional and not required for tests.
 

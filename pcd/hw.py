@@ -222,6 +222,12 @@ class OpenLIFUTriggerClock:
 
     Per-pulse RF is **not** read from OpenLIFU — pair this clock with a
     :class:`ReceiveSource`.
+
+    Safety: by default this clock is **observe-only** and never starts the
+    transmitter, even when ``tx`` is given. Starting TX is an actuation
+    decision that belongs to the therapy platform; pass
+    ``allow_tx_start=True`` only in a bench setup where you intend
+    globalPCD to arm and stop the trigger.
     """
 
     def __init__(
@@ -230,15 +236,20 @@ class OpenLIFUTriggerClock:
         prf_hz: float = 1.0,
         trigger_json: dict[str, Any] | None = None,
         *,
-        start_hardware: bool = True,
+        allow_tx_start: bool = False,
         pace: bool = True,
     ) -> None:
         if prf_hz <= 0:
             raise ValueError(f"prf_hz must be > 0, got {prf_hz}")
+        if trigger_json is not None and not allow_tx_start:
+            raise ValueError(
+                "trigger_json configures the transmitter; it requires "
+                "allow_tx_start=True"
+            )
         self.tx = tx
         self.prf_hz = float(prf_hz)
         self.trigger_json = trigger_json
-        self.start_hardware = start_hardware
+        self.allow_tx_start = allow_tx_start
         self.pace = pace
         self._clock = SoftwarePRFClock(prf_hz, pace=pace)
         self._hw_started = False
@@ -249,7 +260,7 @@ class OpenLIFUTriggerClock:
             stop()
 
     def __enter__(self) -> "OpenLIFUTriggerClock":
-        if self.tx is not None and self.start_hardware:
+        if self.tx is not None and self.allow_tx_start:
             if self.trigger_json is not None:
                 setter = getattr(self.tx, "set_trigger_json", None)
                 if setter is None:
