@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "globalpcd"
 version = "0.1.0"
-description = "Passive cavitation detection (PCD) prototype toolkit"
+description = "Cavitation safety monitor for focused-ultrasound controllers (PCDReading contract)"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"

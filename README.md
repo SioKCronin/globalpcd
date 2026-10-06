@@ -24,6 +24,8 @@ pip install -e ".[dev]"
 pytest tests/ -q
 ```
 
+Release notes for the current milestone: [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Quick start (single-element, LIFU band)
 
 This is the first integration shape: one hydrophone-like channel, no array.
