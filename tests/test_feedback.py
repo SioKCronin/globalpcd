@@ -117,10 +117,11 @@ class TestFeedbackEngine:
         )
         source = (0.0, 35e-3)
         locations = []
+        loc_frames = []
         for frame_id, channels in iter_array_frames(
             source,
             array,
-            regimes="inertial",
+            regimes="stable",
             fs=25e6,
             duration=60e-6,
             snr_db=30,
@@ -128,16 +129,55 @@ class TestFeedbackEngine:
         ):
             r = engine.process_frame(channels, trigger_timestamp=frame_id * 0.01)
             assert r.status in (ReadingStatus.OK, ReadingStatus.DEGRADED)
+            assert r.regime.value != "none"
             locations.append(r.location_estimate)
+            loc_frames.append(r.location_frame_id)
 
         # Frame 0 and 2 run localization; odd frames reuse last estimate
+        # and say so via location_frame_id.
         assert locations[0] is not None
         assert locations[1] == locations[0]
         assert locations[2] is not None
+        assert loc_frames == [0, 0, 2, 2]
         # Peak should be within a few mm of the true source (coarse grid)
         x, z = locations[0]
         assert abs(x - source[0]) < 5e-3
         assert abs(z - source[1]) < 8e-3
+
+    def test_no_location_on_inactive_frames(self):
+        """A none-regime frame must not carry a stale location forward."""
+        array = ArrayGeometry.linear(n_elements=8, pitch=1.5e-3)
+        engine = PCDFeedbackEngine(
+            FeedbackConfig(
+                fs=25e6,
+                f_drive=1e6,
+                localize_every_n=1,
+                localize_grid_points=25,
+                deadline_ms=30_000,
+                x_range=(-8e-3, 8e-3),
+                z_range=(25e-3, 50e-3),
+            ),
+            array=array,
+        )
+        frames = iter_array_frames(
+            (0.0, 35e-3),
+            array,
+            regimes=["stable", "none"],
+            fs=25e6,
+            duration=60e-6,
+            snr_db=30,
+            n_frames=2,
+        )
+        (_, active_frame), (_, quiet_frame) = list(frames)
+        first = engine.process_frame(active_frame, trigger_timestamp=0.0)
+        assert first.location_estimate is not None
+        assert first.location_frame_id == first.frame_id
+
+        quiet = engine.process_frame(quiet_frame, trigger_timestamp=0.01)
+        assert quiet.regime.value == "none"
+        assert quiet.location_estimate is None
+        assert quiet.location_uncertainty is None
+        assert quiet.location_frame_id is None
 
     def test_stage_latency_instrumentation(self):
         engine = PCDFeedbackEngine(

@@ -5,6 +5,38 @@ All notable changes to globalPCD are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] — Unreleased
+
+Review fixes ahead of platform outreach. Schema moves to **1.1.0** (additive).
+
+### Fixed
+
+- **LIFU noise false positives.** Noise-only windows from `SignalParams.lifu()`
+  classified as `stable` in 23/30 seeds (2/30 on the histotripsy preset). The
+  stable criterion now also requires the f/2 peak to clear its local noise floor
+  (`SpectralFeatures.subharmonic_snr`, `ClassifierConfig.subharmonic_snr_threshold
+  = 10`). Synthetic noise reaches ≤ ~5; stable windows ≥ ~40 across 250–650 kHz
+  and the 1 MHz preset. Tests now check rates across 40 seeds instead of one.
+- **Stale locations.** `none`/`unknown` frames no longer report (or refresh) the
+  last location. Decimated carry-forward still applies to active frames, now
+  labelled with `location_frame_id`.
+- **Schema vs. versioning policy.** The JSON Schema rejected any 1.x reading with
+  a new field (`additionalProperties: false`, `const: "1.0.0"`), contradicting the
+  "minor = additive" policy. It now accepts additional properties and any `1.x.y`.
+
+### Changed
+
+- **Sensing never arms TX by default.** `OpenLIFUTriggerClock` is observe-only
+  unless `allow_tx_start=True` (replaces `start_hardware`, which defaulted to
+  `True`). Passing `trigger_json` without the opt-in raises. The example needs
+  `--start-tx` to arm a connected device. **Breaking** for callers that relied on
+  the old default.
+
+### Added
+
+- `PCDReading.location_frame_id` (schema 1.1.0, optional).
+- `jsonschema` in the `dev` extra; schema forward-compat tests.
+
 ## [0.1.0] — 2026-10-06
 
 First review-ready release: a **cavitation safety monitor** for focused-ultrasound
@@ -58,4 +90,5 @@ python examples/mock_controller.py
 - Controllers should treat `no_reading` as fail-safe hold; weight `ok`/`degraded` by `confidence`.
 - Default story for OpenLIFU partners: single-channel safety monitor; array localization is optional later.
 
+[0.1.1]: https://github.com/SioKCronin/globalpcd/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/SioKCronin/globalpcd/releases/tag/v0.1.0

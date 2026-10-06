@@ -4,7 +4,8 @@ OpenLIFU TX-trigger session with synthetic (or file) RF.
 
 Until a passive receive DAQ exists, this loop:
 
-1. Optionally starts/stops an OpenLIFU TX trigger (if openlifu-sdk + hardware)
+1. Observes an OpenLIFU TX module if connected; starts/stops its trigger
+   ONLY with ``--start-tx`` (bench use — globalPCD is sensing-only by default)
 2. Paces frames at the configured PRF in software
 3. Pulls RF from a ReceiveSource (synthetic array or ``.npy`` replay)
 4. Emits PCDReading — never chooses the next pulse
@@ -13,6 +14,7 @@ Run from the repo root::
 
     .venv/bin/python examples/openlifu_trigger_session.py
     .venv/bin/python examples/openlifu_trigger_session.py --npy path/to/rf.npy
+    .venv/bin/python examples/openlifu_trigger_session.py --start-tx   # bench only
 """
 
 from __future__ import annotations
@@ -50,13 +52,21 @@ def main() -> None:
         action="store_true",
         help="Sleep to match PRF (default: run as fast as compute allows)",
     )
+    parser.add_argument(
+        "--start-tx",
+        action="store_true",
+        help="Arm and stop the OpenLIFU TX trigger (bench only; off by default)",
+    )
     args = parser.parse_args()
 
     tx = try_openlifu_tx()
     if tx is None:
         print("OpenLIFU TX: not connected (software PRF clock)")
     else:
-        print("OpenLIFU TX: connected — start_trigger / stop_trigger around session")
+        if args.start_tx:
+            print("OpenLIFU TX: connected — --start-tx given, arming trigger for session")
+        else:
+            print("OpenLIFU TX: connected — observe-only (pass --start-tx to arm)")
 
     array = ArrayGeometry.linear(n_elements=8, pitch=1.5e-3)
     engine = PCDFeedbackEngine(
@@ -98,7 +108,8 @@ def main() -> None:
     clock = OpenLIFUTriggerClock(
         tx=tx,
         prf_hz=args.prf,
-        trigger_json=trigger_json if tx is not None else None,
+        trigger_json=trigger_json if (tx is not None and args.start_tx) else None,
+        allow_tx_start=args.start_tx,
         pace=args.pace,
     )
     readings = FeedbackSession(engine, receive, clock).run(n_frames=args.n_frames)

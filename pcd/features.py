@@ -44,6 +44,12 @@ class SpectralFeatures:
     freqs: np.ndarray
     psd: np.ndarray             # Power spectral density (dB)
 
+    # Subharmonic peak / median local noise floor (dimensionless).
+    # Scale- and window-length-invariant; guards the stable criterion
+    # against noise-only windows. Defaults to inf so hand-built features
+    # keep the amplitude-only behaviour.
+    subharmonic_snr: float = float("inf")
+
 
 def active_burst_window(
     signal: np.ndarray,
@@ -130,6 +136,9 @@ def extract_features(
 
     # Subharmonic and ultraharmonic
     subharmonic_amp = peak_in_band(f_drive / 2)
+    subharmonic_snr = _peak_over_local_floor(
+        freqs, np.abs(spectrum) / n, f_drive / 2, bin_width_hz, subharmonic_amp
+    )
     ultraharmonic_amp = peak_in_band(3 * f_drive / 2)
 
     # Harmonics
@@ -167,4 +176,30 @@ def extract_features(
         icd=icd,
         freqs=freqs,
         psd=psd,
+        subharmonic_snr=subharmonic_snr,
     )
+
+
+def _peak_over_local_floor(
+    freqs: np.ndarray,
+    mag: np.ndarray,
+    f_center: float,
+    bin_width_hz: float,
+    peak: float,
+) -> float:
+    """
+    Ratio of a narrowband peak to the median magnitude in the flanking
+    band (3–6 bin-widths either side of ``f_center``).
+
+    Falls back to a wider flank when the spectrum is too coarse to give
+    at least four flank bins.
+    """
+    for outer in (6.0, 12.0, 24.0):
+        flank = (
+            (np.abs(freqs - f_center) > 3 * bin_width_hz)
+            & (np.abs(freqs - f_center) <= outer * bin_width_hz)
+        )
+        if np.count_nonzero(flank) >= 4:
+            floor = float(np.median(mag[flank]))
+            return peak / (floor + 1e-15)
+    return float("inf")
