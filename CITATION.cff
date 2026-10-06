@@ -8,13 +8,17 @@ authors:
 license: MIT
 repository-code: "https://github.com/SioKCronin/globalPCD"
 abstract: >-
-  Python toolkit for simulating, analysing, and spatially localising synthetic
-  passive cavitation detection (PCD) signals for histotripsy-related research.
+  Python toolkit that emits a versioned PCDReading (cavitation regime,
+  confidence, optional location, latency) for focused-ultrasound controllers.
+  Primary use is research-only safety monitoring; synthetic PCD and optional
+  array localization are included.
 keywords:
   - passive cavitation detection
+  - focused ultrasound
+  - neuromodulation
+  - safety monitoring
   - histotripsy
   - ultrasound
   - beamforming
-  - GCC-PHAT
 version: "0.1.0"
 date-released: "2025-01-01"

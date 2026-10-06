@@ -70,6 +70,23 @@ class PCDReading:
     latency_ms: float  # measured end-to-end for this frame
     stage_latency_ms: dict[str, float] = field(default_factory=dict)
 
+    def to_dict(self) -> dict:
+        """JSON-serialisable form of the 1.0.0 contract (see docs/PCDREADING.md)."""
+        loc = self.location_estimate
+        return {
+            "schema_version": self.schema_version,
+            "frame_id": self.frame_id,
+            "timestamp": self.timestamp,
+            "status": self.status.value,
+            "regime": self.regime.value,
+            "confidence": self.confidence,
+            "location_estimate": list(loc) if loc is not None else None,
+            "location_uncertainty": self.location_uncertainty,
+            "dose_proxy": self.dose_proxy,
+            "latency_ms": self.latency_ms,
+            "stage_latency_ms": dict(self.stage_latency_ms),
+        }
+
 
 @dataclass
 class FeedbackConfig:

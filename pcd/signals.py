@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, replace
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 
@@ -51,6 +51,35 @@ class SignalParams:
     broadband_fraction: float = 0.7
 
     seed: int = 42
+
+    @classmethod
+    def lifu(
+        cls,
+        f_drive: float = 500e3,
+        **overrides: Any,
+    ) -> "SignalParams":
+        """
+        Synthetic preset in the OpenLIFU neuromodulation band.
+
+        Drive is 200–650 kHz (default 500 kHz), with a longer window and
+        lower sample rate than the histotripsy defaults. This is for
+        controller-facing tests, not a claim about real LIFU emissions.
+        """
+        if not (200e3 <= f_drive <= 650e3):
+            raise ValueError(
+                f"LIFU preset f_drive must be in 200–650 kHz, got {f_drive}"
+            )
+        params = cls(
+            fs=10e6,
+            duration=200e-6,
+            f_drive=f_drive,
+            snr_db=20.0,
+        )
+        for key, value in overrides.items():
+            if not hasattr(params, key):
+                raise TypeError(f"unknown SignalParams field: {key}")
+            setattr(params, key, value)
+        return params
 
 
 def generate_signal(

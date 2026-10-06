@@ -1,9 +1,11 @@
 # Contributing
 
-Thanks for looking at globalPCD. The project is a citizen-science / open
-prototype for passive cavitation detection and a controller-facing feedback
-layer — meant to be useful to histotripsy and therapeutic-ultrasound groups
-without locking anyone into one vendor stack.
+Thanks for looking at globalPCD. It is an MIT-licensed cavitation **safety
+monitor** for focused-ultrasound controllers (OpenLIFU included): emit a
+versioned `PCDReading`, never choose the next pulse. Histotripsy dosing
+research is in the toolkit but is not the lead use case.
+
+This software is research-only and not FDA-evaluated.
 
 ## Human contact required
 
@@ -18,10 +20,11 @@ maintainer who will respond on the PR.
 ## What this repo is (and is not)
 
 - **Is:** synthetic-data toolkit + a `PCDReading` contract a therapy controller
-  (e.g. OpenLIFU) can call or subscribe to.
-- **Is not:** a pulse sequencer, a treatment planner, or a claim of real-tissue
-  validated lesion prediction. Control policy stays in the controller; sensing
-  stays here.
+  can call or subscribe to (single-element ingest first; array localization
+  optional).
+- **Is not:** a pulse sequencer, a treatment planner, an FDA-cleared safety
+  claim, or a predictor of lesion completeness. Control policy stays in the
+  controller; sensing stays here.
 
 ## Working on the feedback layer
 
@@ -31,12 +34,13 @@ maintainer who will respond on the PR.
 3. Fail safe explicitly (`no_reading` / `degraded`); never silently replay stale
    frames as live.
 4. Measure per-stage latency; don't assume “real-time.”
-5. Exercise changes with synthetic streams (`iter_signals`, `iter_array_frames`)
-   and the mocked controller:
+5. Exercise changes with synthetic streams (`SignalParams.lifu()`,
+   `iter_signals`) and the hydrophone / mock-controller examples:
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/ -v
+pytest tests/ -q
+python examples/hydrophone_ingest.py
 python examples/mock_controller.py
 ```
 

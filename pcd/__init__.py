@@ -38,6 +38,18 @@ from .feedback import (
     ReadingStatus,
 )
 from .streams import iter_array_frames
+from .hw import (
+    FeedbackSession,
+    FileReplaySource,
+    HydrophoneFileSource,
+    OpenLIFUTriggerClock,
+    ReceiveFrame,
+    SoftwarePRFClock,
+    SyntheticReceiveSource,
+    load_hydrophone_file,
+    try_openlifu_tx,
+    write_hydrophone_wav,
+)
 
 __all__ = [
     "SignalParams",
@@ -63,6 +75,16 @@ __all__ = [
     "PCDReading",
     "ReadingStatus",
     "iter_array_frames",
+    "FeedbackSession",
+    "FileReplaySource",
+    "HydrophoneFileSource",
+    "OpenLIFUTriggerClock",
+    "ReceiveFrame",
+    "SoftwarePRFClock",
+    "SyntheticReceiveSource",
+    "load_hydrophone_file",
+    "try_openlifu_tx",
+    "write_hydrophone_wav",
 ]
 
 __version__ = "0.1.0"
