@@ -5,19 +5,24 @@ All notable changes to globalPCD are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
-## [0.1.1] — Unreleased
+## [0.1.1] — 2026-10-17
 
 Review fixes ahead of platform outreach. Schema moves to **1.1.0** (additive).
+Synthetic data only; research-only; not FDA-evaluated.
 
 ### Fixed
 
 - **LIFU noise false positives.** Noise-only windows from `SignalParams.lifu()`
   classified as `stable` in 23/30 seeds (2/30 on the histotripsy preset). The
-  stable criterion now also requires the f/2 peak to clear its local noise floor
-  (`SpectralFeatures.subharmonic_snr`, `ClassifierConfig.subharmonic_snr_threshold
-  = 10`). Synthetic noise reaches ≤ ~5; stable windows ≥ ~40 across 250–650 kHz
-  and the 1 MHz preset. Tests now check rates across 40 seeds instead of one.
-- **Stale locations.** `none`/`unknown` frames no longer report (or refresh) the
+  amplitude gate (`subharmonic_amp > 0.005`) drifts with window length, and the
+  shorter LIFU FFT pushed noise over it. `stable` now also requires the f/2 peak
+  to clear its local noise floor (`SpectralFeatures.subharmonic_snr`,
+  `ClassifierConfig.subharmonic_snr_threshold = 10`). Synthetic noise reaches
+  ≤ ~5; stable windows ≥ ~40 across 250–650 kHz and the 1 MHz preset. Tests
+  check rates across 40 seeds instead of one. On the mock controller, a
+  ground-truth `none` frame that previously held as `stable` (confidence 0.93)
+  now ramps as `none`.
+- **Stale locations.** `none`/`unknown` frames no longer report or refresh the
   last location. Decimated carry-forward still applies to active frames, now
   labelled with `location_frame_id`.
 - **Schema vs. versioning policy.** The JSON Schema rejected any 1.x reading with
@@ -36,6 +41,28 @@ Review fixes ahead of platform outreach. Schema moves to **1.1.0** (additive).
 
 - `PCDReading.location_frame_id` (schema 1.1.0, optional).
 - `jsonschema` in the `dev` extra; schema forward-compat tests.
+
+### Upgrade
+
+- Replace `start_hardware=True` with `allow_tx_start=True` only on a bench where
+  arming TX is intentional. Omit it (the default) to stay observe-only. The
+  example requires `--start-tx`.
+- Readings now report `schema_version` **1.1.0**. Payloads from 1.0.0 still
+  validate. 1.x consumers should ignore unknown fields. Use `location_frame_id`
+  to tell a fresh location (`== frame_id`) from one carried forward under
+  decimation; it is null when there is no location.
+- A window that used to read `stable` on subharmonic amplitude alone can now
+  read `none` if the f/2 peak does not clear the SNR gate.
+
+### Not in this release
+
+- Inertial frames on the synthetic array path can still classify as `none`
+  (cavitation-index path; also present in 0.1.0). The cadence test uses a
+  `stable` stream so a carried location no longer hides that miss.
+- `FileReplaySource` 2-D shape guessing, WAV peak normalisation, where frame
+  timestamps come from, and a Python version matrix in CI.
+- No live OpenLIFU RF capture, no `globalpcd-openlifu` adapter, no tissue or
+  bench calibration claims, no PyPI publish, no Zenodo DOI.
 
 ## [0.1.0] — 2026-10-06
 
