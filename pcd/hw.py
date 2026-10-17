@@ -19,7 +19,7 @@ import time
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -33,6 +33,9 @@ class ReceiveFrame:
     """One receive window, keyed to a pulse trigger."""
 
     channel_data: np.ndarray  # (N_samples,) or (N_elements, N_samples)
+    # Seconds on the controller clock when this window's pulse fired.
+    # None means the source does not know — FeedbackSession then uses the
+    # trigger clock's wait() stamp (a software PRF time, not a TX edge).
     trigger_timestamp: float | None = None
 
 
@@ -83,22 +86,41 @@ class FileReplaySource:
     Accepted shapes
     ---------------
     ``(N_frames, N_elements, N_samples)``
-        Multi-channel session.
-    ``(N_frames, N_samples)``
+        Multi-channel session. Do not pass ``layout``.
+    ``(N_frames, N_samples)`` with ``layout="frames"``
         Single-channel session.
-    ``(N_elements, N_samples)``
+    ``(N_elements, N_samples)`` with ``layout="channels"``
         One multi-channel frame (promoted to a 1-frame session).
+
+    A 2-D array is not guessed. ``(N_frames, N_samples)`` and
+    ``(N_elements, N_samples)`` can have the same rank and similar sizes
+    (a short single-channel session looks like a modest array), so the
+    caller has to say which axis is which.
     """
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(
+        self,
+        path: str | Path,
+        *,
+        layout: Literal["frames", "channels"] | None = None,
+    ) -> None:
         arr = np.load(Path(path))
         if arr.ndim == 2:
-            # Ambiguous: treat as a single multi-channel frame if rows look
-            # like elements (few rows), else as stacked 1-D frames.
-            if arr.shape[0] <= 256 and arr.shape[1] > arr.shape[0]:
+            if layout == "frames":
+                arr = arr[:, np.newaxis, :]
+            elif layout == "channels":
                 arr = arr[np.newaxis, ...]
             else:
-                arr = arr[:, np.newaxis, :]
+                raise ValueError(
+                    "2-D RF replay is ambiguous: pass layout='frames' for "
+                    "(N_frames, N_samples) or layout='channels' for one "
+                    f"(N_elements, N_samples) frame. Got shape {tuple(arr.shape)}."
+                )
+        elif layout is not None:
+            raise ValueError(
+                f"layout={layout!r} applies only to 2-D replay files "
+                f"(got ndim {arr.ndim})"
+            )
         if arr.ndim != 3:
             raise ValueError(
                 f"RF replay file must be 2-D or 3-D, got shape {arr.shape}"
@@ -118,7 +140,10 @@ def load_hydrophone_file(path: str | Path) -> tuple[np.ndarray, float | None]:
     """
     Load a single-element PCD recording.
 
-    ``.wav`` — first channel, peak-normalised; returns ``(signal, fs)``.
+    ``.wav`` — first channel, full-scale float in about [-1, 1]; returns
+    ``(signal, fs)``. Integer PCM is divided by the dtype full scale
+    (int16 → 32768), not by the file peak, so a quiet recording stays
+    quiet. Float WAV is returned as stored.
     ``.npy`` — 1-D float array; returns ``(signal, None)`` (caller supplies fs).
     """
     path = Path(path)
@@ -130,11 +155,7 @@ def load_hydrophone_file(path: str | Path) -> tuple[np.ndarray, float | None]:
         data = np.asarray(data)
         if data.ndim > 1:
             data = data[:, 0]
-        data = data.astype(np.float64)
-        peak = np.max(np.abs(data))
-        if peak > 0:
-            data = data / peak
-        return data, float(fs)
+        return _wav_to_float(data), float(fs)
     if suffix == ".npy":
         data = np.asarray(np.load(path), dtype=float)
         if data.ndim != 1:
@@ -146,8 +167,27 @@ def load_hydrophone_file(path: str | Path) -> tuple[np.ndarray, float | None]:
     raise ValueError(f"unsupported hydrophone file type: {path.suffix}")
 
 
+def _wav_to_float(data: np.ndarray) -> np.ndarray:
+    """Map WAV samples to float without peak-normalising."""
+    if np.issubdtype(data.dtype, np.floating):
+        return np.asarray(data, dtype=np.float64)
+    if data.dtype == np.uint8:
+        return (data.astype(np.float64) - 128.0) / 128.0
+    if np.issubdtype(data.dtype, np.signedinteger):
+        # iinfo.min is -2**(nbits-1); dividing by its magnitude maps
+        # full-scale negative to -1 and full-scale positive to just under 1.
+        scale = -float(np.iinfo(data.dtype).min)
+        return data.astype(np.float64) / scale
+    raise ValueError(f"unsupported WAV sample dtype: {data.dtype}")
+
+
 def write_hydrophone_wav(path: str | Path, signal: np.ndarray, fs: float) -> None:
-    """Write a peak-normalised 1-D RF window as 16-bit PCM WAV."""
+    """Write a 1-D RF window as 16-bit PCM WAV.
+
+    The writer peak-normalises so a quiet synthetic uses the PCM range.
+    :func:`load_hydrophone_file` does not peak-normalise on the way back
+    in: it converts full-scale integers to ±1.
+    """
     from scipy.io import wavfile
 
     x = np.asarray(signal, dtype=float).ravel()
@@ -222,6 +262,15 @@ class OpenLIFUTriggerClock:
 
     Per-pulse RF is **not** read from OpenLIFU — pair this clock with a
     :class:`ReceiveSource`.
+
+    ``wait`` returns a software-clock timestamp (``time.perf_counter``),
+    paced at ``prf_hz`` when ``pace`` is true. It does not observe TX
+    trigger edges. Built-in receive sources leave
+    ``ReceiveFrame.trigger_timestamp`` unset, so :class:`FeedbackSession`
+    stores this software stamp on the reading. Pass ``pace=True`` to
+    space frames at the PRF; an independently running transmitter is
+    not aligned to these stamps. When the DAQ knows the real trigger
+    time, set ``trigger_timestamp`` on the frame — that value wins.
 
     Safety: by default this clock is **observe-only** and never starts the
     transmitter, even when ``tx`` is given. Starting TX is an actuation
@@ -319,6 +368,14 @@ class FeedbackSession:
 
         session = FeedbackSession(engine, receive, OpenLIFUTriggerClock(tx, prf_hz=1.0))
         readings = session.run(n_frames=8)
+
+    Each reading's ``timestamp`` is ``ReceiveFrame.trigger_timestamp``
+    when the source set one, otherwise the value returned by
+    ``trigger.wait()``. For :class:`OpenLIFUTriggerClock` and
+    :class:`SoftwarePRFClock` that wait value is a software clock, not
+    an observed TX edge. :class:`SyntheticReceiveSource`,
+    :class:`FileReplaySource`, and :class:`HydrophoneFileSource` leave
+    the frame timestamp unset.
     """
 
     engine: PCDFeedbackEngine

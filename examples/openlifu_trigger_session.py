@@ -14,6 +14,7 @@ Run from the repo root::
 
     .venv/bin/python examples/openlifu_trigger_session.py
     .venv/bin/python examples/openlifu_trigger_session.py --npy path/to/rf.npy
+    .venv/bin/python examples/openlifu_trigger_session.py --npy path/to/rf.npy --npy-layout frames
     .venv/bin/python examples/openlifu_trigger_session.py --start-tx   # bench only
 """
 
@@ -44,6 +45,16 @@ def main() -> None:
         type=Path,
         default=None,
         help="Replay RF from a .npy file instead of synthetic frames",
+    )
+    parser.add_argument(
+        "--npy-layout",
+        choices=("frames", "channels"),
+        default=None,
+        help=(
+            "Axis meaning for a 2-D .npy: 'frames' is (N_frames, N_samples), "
+            "'channels' is one (N_elements, N_samples) frame. "
+            "Required for 2-D files; 3-D files are (N_frames, N_elements, N_samples)."
+        ),
     )
     parser.add_argument("--prf", type=float, default=10.0, help="Trigger PRF (Hz)")
     parser.add_argument("--n-frames", type=int, default=6)
@@ -94,7 +105,7 @@ def main() -> None:
         )
         print("RF source: synthetic array frames")
     else:
-        receive = FileReplaySource(args.npy)
+        receive = FileReplaySource(args.npy, layout=args.npy_layout)
         print(f"RF source: file replay {args.npy}")
 
     trigger_json = {

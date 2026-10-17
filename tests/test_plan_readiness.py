@@ -17,7 +17,7 @@ from pcd import (
     extract_features,
     generate_signal,
 )
-from pcd.hw import HydrophoneFileSource, write_hydrophone_wav
+from pcd.hw import HydrophoneFileSource, load_hydrophone_file, write_hydrophone_wav
 
 
 class TestLifuPreset:
@@ -92,6 +92,18 @@ class TestHydrophoneIngest:
         assert payload["location_estimate"] is None
         assert payload["regime"] in {"none", "stable", "inertial", "mixed", "unknown"}
         assert payload["latency_ms"] >= 0.0
+
+    def test_wav_load_keeps_half_scale(self, tmp_path: Path):
+        """Integer PCM maps by full scale, not by the file peak."""
+        from scipy.io import wavfile
+
+        wav = tmp_path / "half.wav"
+        pcm = np.full(64, 16384, dtype=np.int16)  # 16384/32768 = 0.5
+        wavfile.write(wav, 10_000_000, pcm)
+        signal, fs = load_hydrophone_file(wav)
+        assert fs == 10_000_000
+        assert signal.shape == (64,)
+        np.testing.assert_allclose(signal, 0.5, atol=1e-6)
 
     def test_npy_requires_fs(self, tmp_path: Path):
         path = tmp_path / "rf.npy"

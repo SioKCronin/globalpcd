@@ -205,23 +205,25 @@ class TestFeedbackEngine:
             ),
             array=array,
         )
-        _, channels = next(
-            iter_array_frames(
-                (0.0, 35e-3),
-                array,
-                regimes="inertial",
-                fs=25e6,
-                duration=60e-6,
-                snr_db=30,
-                n_frames=1,
-            )
-        )
-        reading = engine.process_frame(channels, trigger_timestamp=0.0)
-        assert reading.status != ReadingStatus.NO_READING
-        assert reading.regime.value in {"inertial", "mixed"}
+        labels = []
+        for frame_id, channels in iter_array_frames(
+            (0.0, 35e-3),
+            array,
+            regimes="inertial",
+            fs=25e6,
+            duration=60e-6,
+            snr_db=30,
+            n_frames=6,
+        ):
+            reading = engine.process_frame(channels, trigger_timestamp=frame_id * 0.01)
+            assert reading.status != ReadingStatus.NO_READING
+            labels.append(reading.regime.value)
+        # Frames 1–2 used to read as none: the inertial notch was a fixed
+        # ±30 kHz, narrower than one FFT bin on this ~20 µs burst.
+        assert all(lab in {"inertial", "mixed"} for lab in labels), labels
 
-    def test_array_path_without_burst_window_under_detects(self):
-        """Documents the dilution bug: full-buffer features miss inertial."""
+    def test_array_path_detects_inertial_without_burst_window(self):
+        """One-bin notches keep CI above threshold even on the full receive buffer."""
         array = ArrayGeometry.linear(n_elements=8, pitch=1.5e-3)
         engine = PCDFeedbackEngine(
             FeedbackConfig(
@@ -233,20 +235,21 @@ class TestFeedbackEngine:
             ),
             array=array,
         )
-        _, channels = next(
-            iter_array_frames(
-                (0.0, 35e-3),
-                array,
-                regimes="inertial",
-                fs=25e6,
-                duration=60e-6,
-                snr_db=30,
-                n_frames=1,
+        labels = []
+        for frame_id, channels in iter_array_frames(
+            (0.0, 35e-3),
+            array,
+            regimes="inertial",
+            fs=25e6,
+            duration=60e-6,
+            snr_db=30,
+            n_frames=6,
+        ):
+            reading = engine.process_frame(
+                channels, trigger_timestamp=frame_id * 0.01
             )
-        )
-        reading = engine.process_frame(channels, trigger_timestamp=0.0)
-        # Without windowing, inertial is typically collapsed to none
-        assert reading.regime.value in {"none", "stable"}
+            labels.append(reading.regime.value)
+        assert all(lab in {"inertial", "mixed"} for lab in labels), labels
 
 
 class TestActiveBurstWindow:

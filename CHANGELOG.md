@@ -28,6 +28,18 @@ Synthetic data only; research-only; not FDA-evaluated.
 - **Schema vs. versioning policy.** The JSON Schema rejected any 1.x reading with
   a new field (`additionalProperties: false`, `const: "1.0.0"`), contradicting the
   "minor = additive" policy. It now accepts additional properties and any `1.x.y`.
+- **Inertial misses on short array bursts.** Frames 1–2 of a 6-frame
+  `iter_array_frames(..., regimes="inertial")` stream classified as `none`.
+  The synthetic inertial notch was a fixed ±30 kHz, narrower than one FFT
+  bin on a ~20 µs burst (df ≈ 50 kHz), so a random broadband bin counted as
+  a harmonic and CI fell below 1.3. The notch is now at least one bin wide.
+  Direct histotripsy and LIFU windows are unchanged (their bins are already
+  finer than 30 kHz).
+- **WAV load peak-normalisation.** `load_hydrophone_file` divided by the file
+  peak, so a quiet recording was stretched to full scale and absolute spectral
+  amplitudes moved. Integer PCM is now scaled by the dtype full scale
+  (int16 → 32768); float WAV is returned as stored. `write_hydrophone_wav`
+  still peak-normalises on the way out so synthetics use the 16-bit range.
 
 ### Changed
 
@@ -36,11 +48,24 @@ Synthetic data only; research-only; not FDA-evaluated.
   `True`). Passing `trigger_json` without the opt-in raises. The example needs
   `--start-tx` to arm a connected device. **Breaking** for callers that relied on
   the old default.
+- **2-D replay no longer guesses the shape.** `FileReplaySource` used to treat
+  a 2-D array as one multi-channel frame when it had ≤256 rows and more
+  columns than rows, and as stacked single-channel frames otherwise. A short
+  single-channel session matches that first rule. 2-D files now require
+  `layout="frames"` `(N_frames, N_samples)` or `layout="channels"`
+  `(N_elements, N_samples)`. 3-D files stay `(N_frames, N_elements, N_samples)`.
+  The example takes `--npy-layout`. **Breaking** for 2-D `.npy` callers.
 
 ### Added
 
 - `PCDReading.location_frame_id` (schema 1.1.0, optional).
 - `jsonschema` in the `dev` extra; schema forward-compat tests.
+- CI runs pytest on Python 3.10, 3.11, 3.12, and 3.13.
+- `docs/PCDREADING.md` records where `timestamp` comes from: the engine stores
+  the caller's `trigger_timestamp`; `FeedbackSession` prefers
+  `ReceiveFrame.trigger_timestamp` and otherwise uses `TriggerClock.wait()`,
+  which for the software and OpenLIFU clocks is `time.perf_counter` pacing,
+  not an observed TX edge. Built-in sources leave the frame timestamp unset.
 
 ### Upgrade
 
@@ -56,11 +81,6 @@ Synthetic data only; research-only; not FDA-evaluated.
 
 ### Not in this release
 
-- Inertial frames on the synthetic array path can still classify as `none`
-  (cavitation-index path; also present in 0.1.0). The cadence test uses a
-  `stable` stream so a carried location no longer hides that miss.
-- `FileReplaySource` 2-D shape guessing, WAV peak normalisation, where frame
-  timestamps come from, and a Python version matrix in CI.
 - No live OpenLIFU RF capture, no `globalpcd-openlifu` adapter, no tissue or
   bench calibration claims, no PyPI publish, no Zenodo DOI.
 

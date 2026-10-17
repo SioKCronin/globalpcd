@@ -13,7 +13,7 @@ Python: `PCDReading.to_dict()` / `SCHEMA_VERSION`.
 |-------|------|---------|
 | `schema_version` | string | Currently `"1.1.0"`; any `1.x` validates |
 | `frame_id` | int ≥ 0 | Monotonic per engine instance |
-| `timestamp` | float | Pulse-trigger time (s), controller clock |
+| `timestamp` | float | Time (s) the caller passed as `trigger_timestamp`. See below. |
 | `status` | `ok` / `degraded` / `no_reading` | See fail-safe below |
 | `regime` | `none` / `stable` / `inertial` / `mixed` / `unknown` | Acoustic judgment |
 | `confidence` | 0–1 | Distance-to-threshold heuristic (not a calibrated probability) |
@@ -23,6 +23,23 @@ Python: `PCDReading.to_dict()` / `SCHEMA_VERSION`.
 | `latency_ms` | number ≥ 0 | Measured compute time for this frame |
 | `stage_latency_ms` | object | Optional per-stage timings |
 | `location_frame_id` | int or null | *(1.1.0)* Frame the location was computed on. `== frame_id` when fresh; smaller when carried forward under decimated localization; null with no location. Controllers should check its age before trusting the position. |
+
+## Where `timestamp` comes from
+
+`PCDFeedbackEngine.process_frame` stores the `trigger_timestamp` argument
+unchanged. It does not read a clock.
+
+`FeedbackSession` fills that argument from the receive frame when
+`ReceiveFrame.trigger_timestamp` is set, and otherwise from
+`TriggerClock.wait()`. `SoftwarePRFClock` and `OpenLIFUTriggerClock.wait`
+return `time.perf_counter()` after optionally sleeping to the configured
+PRF. That is software pacing, not an observed TX edge. The built-in
+sources (`SyntheticReceiveSource`, `FileReplaySource`,
+`HydrophoneFileSource`) leave the frame timestamp unset, so a session
+using them records the software stamp. A DAQ that knows the real trigger
+time should set `trigger_timestamp` on the frame; that value is the one
+written to the reading. `examples/openlifu_trigger_session.py` only
+spaces calls at the PRF when `--pace` is passed.
 
 ## Fail-safe
 
