@@ -86,7 +86,9 @@ pass `allow_tx_start=True` (or `--start-tx` in the example) only on a bench.
 
 ## Collaboration
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md). Sensing stays here; pulse policy
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). What a controller integration
+needs on the receive side, and how `PCDReading` sits beside pulse policy:
+[`docs/PARTNERSHIP.md`](docs/PARTNERSHIP.md). Sensing stays here; pulse policy
 stays with the platform. Real-tissue validation is welcome and is not claimed
 by the synthetic default path.
 
