@@ -47,7 +47,9 @@ python examples/mock_controller.py
 ## Collaboration
 
 If you work on therapeutic ultrasound / PCD / OpenLIFU-class platforms and want
-to try the reading contract against your receive path, open an issue or PR with:
+to try the reading contract against your receive path, see
+[`docs/PARTNERSHIP.md`](docs/PARTNERSHIP.md) for the receive data we need and
+how the reading is meant to sit beside pulse policy. Open an issue or PR with:
 
 - how your controller wants to pull or subscribe
 - sample rates / PRF budget you need to hit

@@ -150,10 +150,17 @@ def generate_signal(
         band_mask = (freqs >= f_low) & (freqs <= f_high)
         amplitudes[~band_mask] = 0.0
 
-        # Suppress narrow bands around harmonics so they don't look like
-        # harmonic peaks — real inertial emissions have no tonal structure
+        # Suppress bands around harmonics so they don't look like tonal
+        # peaks — real inertial emissions have no tonal structure.
+        # The notch must cover at least one FFT bin. A fixed ±30 kHz
+        # misses the bin entirely when the window is short (array bursts
+        # at 25 MHz are ~20 µs, so df ≈ 50 kHz), and that bin's random
+        # broadband energy then reads as a harmonic, collapsing CI below
+        # the inertial threshold on some seeds.
+        df = float(freqs[1] - freqs[0]) if n_rfft > 1 else 30e3
+        notch_half = max(30e3, df)
         for harmonic in [0.5, 1.0, 1.5, 2.0, 3.0]:
-            notch = np.abs(freqs - harmonic * f) < 30e3
+            notch = np.abs(freqs - harmonic * f) <= notch_half
             amplitudes[notch] = 0.0
 
         broadband_spectrum = amplitudes * np.exp(1j * phases)
