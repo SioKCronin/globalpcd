@@ -61,6 +61,11 @@ Synthetic data only; research-only; not FDA-evaluated.
 - `PCDReading.location_frame_id` (schema 1.1.0, optional).
 - `jsonschema` in the `dev` extra; schema forward-compat tests.
 - CI runs pytest on Python 3.10, 3.11, 3.12, and 3.13.
+- PyPI packaging: SPDX license, classifiers, project URLs, and a `publish`
+  workflow that builds and uploads on a published GitHub release (trusted
+  publishing). `CITATION.cff` carries the release date.
+- [`docs/PARTNERSHIP.md`](docs/PARTNERSHIP.md): receive data a controller
+  integration has to provide, and how `PCDReading` sits beside pulse policy.
 - `docs/PCDREADING.md` records where `timestamp` comes from: the engine stores
   the caller's `trigger_timestamp`; `FeedbackSession` prefers
   `ReceiveFrame.trigger_timestamp` and otherwise uses `TriggerClock.wait()`,
