@@ -5,6 +5,23 @@ All notable changes to globalPCD are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Developer log on the `pcd` logger: one line per frame
+  ([`docs/LOGGING.md`](docs/LOGGING.md)). The `PCDReading` schema is unchanged.
+  A deadline miss logs at WARNING (`reason=deadline`). A fault logs at ERROR
+  with a traceback (`reason=fault`) and still returns `no_reading`.
+  `run_beside_trigger` logs each pulse it considers, including a miss.
+- Static product page at [`docs/index.html`](docs/index.html).
+
+### Removed
+
+- Drifted prototype copies under `files/` (`signals.py`, `features.py`,
+  `classifier.py`, `beamformer.py`, `test_pcd.py`). The installable code is
+  `pcd/`. `files/` keeps the browser visualiser.
+
 ## [0.1.1] — 2026-10-17
 
 Review fixes ahead of platform outreach. Schema moves to **1.1.0** (additive).
@@ -43,6 +60,13 @@ Synthetic data only; research-only; not FDA-evaluated.
 
 ### Changed
 
+- **Framing: the stable-cavitation window.** README, `PARTNERSHIP.md`,
+  `PCDREADING.md`, CONTRIBUTING, package description and citation now say one
+  thing: globalPCD is designed for holding a sonication inside the stable
+  window (`none` is the floor, `inertial` the ceiling). The suggested mapping
+  is `stable` → continue, `none` → below window, `mixed` → step down,
+  `inertial` → stop or step down, `no_reading` → hold. The cavitation-free
+  safety mapping (`stable` → caution) is kept as the alternative.
 - **Sensing never arms TX by default.** `OpenLIFUTriggerClock` is observe-only
   unless `allow_tx_start=True` (replaces `start_hardware`, which defaulted to
   `True`). Passing `trigger_json` without the opt-in raises. The example needs

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>globalPCD — stable-cavitation monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060a0f;
+    --surface: #0d1420;
+    --surface2: #141e2e;
+    --border: #1e2d42;
+    --none: #7eb0d4;
+    --stable: #3db88a;
+    --inertial: #e8544a;
+    --mixed: #e8a84a;
+    --text: #c8d8e8;
+    --dim: #7f97ab;
+    --bright: #eaf2fa;
+    --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --display: Syne, "Avenir Next", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 15px;
+    line-height: 1.65;
+  }
+  a { color: var(--none); text-underline-offset: 3px; }
+  a:hover { color: var(--bright); }
+  header, main, footer { width: min(920px, calc(100% - 40px)); margin: 0 auto; }
+  header { padding: 36px 0 8px; }
+  .mark {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: baseline;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(40px, 7vw, 68px);
+    letter-spacing: -0.045em;
+    line-height: 0.92;
+    color: var(--bright);
+    margin: 18px 0 12px;
+  }
+  h1 span { color: var(--stable); }
+  .lede {
+    font-size: 17px;
+    max-width: 38em;
+    color: var(--text);
+    margin: 0 0 28px;
+  }
+  .window {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .band { padding: 16px 14px 18px; border-right: 1px solid var(--border); }
+  .band:last-child { border-right: 0; }
+  .band b {
+    display: block;
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 6px;
+  }
+  .band p { margin: 0; color: var(--dim); font-size: 12px; line-height: 1.45; }
+  .none b { color: var(--none); }
+  .stable b { color: var(--stable); }
+  .mixed b { color: var(--mixed); }
+  .inertial b { color: var(--inertial); }
+  section { padding: 42px 0 8px; }
+  h2 {
+    font-family: var(--display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin: 0 0 14px;
+  }
+  p { margin: 0 0 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--dim); font-weight: 500; width: 28%; }
+  code, .chip {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    color: var(--bright);
+  }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--bright);
+  }
+  .status {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .status div { background: var(--surface2); padding: 16px 18px; }
+  .status strong {
+    display: block;
+    font-family: var(--display);
+    font-weight: 700;
+    color: var(--bright);
+    letter-spacing: -0.03em;
+    margin-bottom: 4px;
+  }
+  .status p { margin: 0; color: var(--dim); font-size: 13px; }
+  ul { margin: 0; padding-left: 1.1em; }
+  li { margin: 0 0 8px; }
+  footer {
+    padding: 36px 0 48px;
+    color: var(--dim);
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  @media (max-width: 720px) {
+    header, main, footer { width: min(920px, calc(100% - 28px)); }
+    .mark { flex-direction: column; align-items: flex-start; letter-spacing: 0.08em; }
+    .window, .status { grid-template-columns: 1fr 1fr; }
+    .band { border-bottom: 1px solid var(--border); }
+    th { width: 34%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="mark">
+    <span>globalPCD · 0.1.1</span>
+    <span>Research only · not FDA-evaluated</span>
+  </div>
+  <h1>Hold the sonication inside the <span>stable window</span>.</h1>
+  <p class="lede">
+    globalPCD listens to one receive window and reports whether cavitation
+    is below, inside, or above stable oscillation. The therapy controller
+    keeps the next pulse. This page is the product. The package is the instrument.
+  </p>
+  <div class="window" aria-label="Cavitation regimes">
+    <div class="band none"><b>none</b><p>Below the window. No cavitation detected.</p></div>
+    <div class="band stable"><b>stable</b><p>Inside the window. Sustained oscillation, no collapse.</p></div>
+    <div class="band mixed"><b>mixed</b><p>Approaching the ceiling. Both markers present.</p></div>
+    <div class="band inertial"><b>inertial</b><p>Above the ceiling. Broadband collapse.</p></div>
+  </div>
+</header>
+
+<main>
+  <section>
+    <h2>What crosses the boundary</h2>
+    <p>
+      A versioned <a href="PCDREADING.md">PCDReading</a> (schema 1.1.0).
+      Regime, confidence, optional location, measured latency.
+      <code>no_reading</code> means the deadline was missed or the frame failed.
+      Hold. Do not replay the previous frame as live.
+    </p>
+    <table>
+      <tbody>
+        <tr><th>Pull</th><td>The run loop calls <code>process_frame(channel_data, trigger_timestamp)</code> and reads the result before the next block.</td></tr>
+        <tr><th>Subscribe</th><td>The controller registers a callback and reacts when a reading is emitted.</td></tr>
+        <tr><th>Suggested map</th><td><code>stable</code> continue · <code>none</code> below window · <code>mixed</code> step down · <code>inertial</code> stop or step down · <code>no_reading</code> hold. Policy stays with the platform.</td></tr>
+        <tr><th>Does not do</th><td>Choose a pulse, program a solution, or arm high voltage. <code>OpenLIFUTriggerClock</code> is observe-only unless a bench passes <code>allow_tx_start=True</code>.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Where it stands</h2>
+    <div class="status">
+      <div>
+        <strong>Synthetic, calibrated</strong>
+        <p>Thresholds were fit on peak-normalized synthetic RF. They are not a claim about tissue, dose, or harm.</p>
+      </div>
+      <div>
+        <strong>Waiting on a receive path</strong>
+        <p>Phase 1 is one hydrophone and a DAQ. The open ask is a recording with samples, sample rate, drive frequency, and a trigger time, plus where the call sits in the run loop.</p>
+      </div>
+      <div>
+        <strong>Single channel first</strong>
+        <p>Array localization (GCC-PHAT, delay-and-sum, higher-order DMAS) is optional and off unless a site has element positions.</p>
+      </div>
+      <div>
+        <strong>Log, then integrate</strong>
+        <p>Each frame is one line on the <code>pcd</code> logger. The reading contract does not change. See <a href="LOGGING.md">the developer log</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Try the synthetic path</h2>
+    <pre>pip install -e ".[dev]"
+pytest tests/ -q</pre>
+    <pre>from pcd import FeedbackConfig, PCDFeedbackEngine, SignalParams, generate_signal
+
+params = SignalParams.lifu(f_drive=500e3)  # 200–650 kHz
+_t, rf = generate_signal("inertial", params)
+engine = PCDFeedbackEngine(
+    FeedbackConfig(fs=params.fs, f_drive=params.f_drive, localize_every_n=0)
+)
+reading = engine.process_frame(rf, trigger_timestamp=0.0)
+print(reading.status, reading.regime, reading.confidence, f"{reading.latency_ms:.2f} ms")</pre>
+    <p>
+      File ingest: <code>python examples/hydrophone_ingest.py</code>.
+      A controller that only sees readings: <code>python examples/mock_controller.py</code>.
+      Spectra and a map, in the browser: <a href="../files/pcd_viz.html">pcd_viz.html</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2>A recording has to carry</h2>
+    <ul>
+      <li><code>channel_data</code> — one receive window, float samples. Integer WAV is scaled by the dtype full scale, not the file peak.</li>
+      <li><code>fs</code> — sample rate in Hz. A WAV header has it. A <code>.npy</code> does not.</li>
+      <li><code>f_drive</code> — therapy frequency. Subharmonic and harmonic bands are placed on it.</li>
+      <li><code>trigger_timestamp</code> — seconds on a clock shared with the sonication, ideally the transmit edge for that window.</li>
+    </ul>
+    <p>The partnership note is <a href="PARTNERSHIP.md">docs/PARTNERSHIP.md</a>. Same contract for any controller that can hand over a window and take a reading back. OpenLIFU is the first platform it was written against.</p>
+  </section>
+</main>
+
+<footer>
+  <span>MIT · Siobhan K Cronin · synthetic data only</span>
+  <span><a href="https://github.com/SioKCronin/globalpcd">github.com/SioKCronin/globalpcd</a></span>
+</footer>
+</body>
+</html>

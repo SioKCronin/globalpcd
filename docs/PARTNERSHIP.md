@@ -1,6 +1,6 @@
 # Partnership: cavitation sensing beside a therapy controller
 
-globalPCD is an MIT-licensed cavitation safety monitor for focused-ultrasound
+globalPCD is an MIT-licensed cavitation monitor for focused-ultrasound
 controllers. OpenLIFU is the first platform this note is written for. The same
 contract is meant for any controller that can hand over a receive window and
 accept a reading back.
@@ -30,14 +30,18 @@ location, and how long the classification took. `no_reading` means the deadline
 was missed or the frame failed. The controller should hold. It should not
 replay a previous frame as live.
 
-Suggested mapping for neuromodulation safety, still research-only, policy
-remaining with the platform:
+Suggested mapping for stable-cavitation work (policy remains with the
+platform):
 
-- `inertial` at high confidence → interlock or step-down, beside existing
-  mechanical-index limits
+- `stable` at high confidence → in window, continue
+- `none` → below window; report it, and whether to adjust drive is platform
+  policy
+- `mixed` → approaching the ceiling; step down
+- `inertial` → above the ceiling; stop or step down, beside existing MI limits
 - `no_reading` → hold
-- `none` → continue under those existing limits
-- `stable` → caution
+
+For sonications meant to stay cavitation-free, the same reading works as a
+safety check: `inertial` → interlock, `stable` → caution, `none` → continue.
 
 Minor schema versions only add optional fields. Consumers ignore unknown
 fields. An Openwater-specific fork of the schema is the outcome we want to

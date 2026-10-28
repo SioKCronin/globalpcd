@@ -9,6 +9,8 @@ Background links use free papers only (arXiv / PMC / theses / preprints);
 see the repository README and each module's ``Context (free papers)`` block.
 """
 
+import logging
+
 from .signals import (
     SignalParams,
     generate_signal,
@@ -89,3 +91,5 @@ __all__ = [
 
 __version__ = "0.1.1"
 __license__ = "MIT"
+
+logging.getLogger("pcd").addHandler(logging.NullHandler())

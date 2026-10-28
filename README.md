@@ -2,18 +2,30 @@
 
 [![tests](https://github.com/SioKCronin/globalpcd/actions/workflows/tests.yml/badge.svg)](https://github.com/SioKCronin/globalpcd/actions/workflows/tests.yml)
 
-**Cavitation safety monitor for focused-ultrasound controllers.** MIT-licensed, vendor-neutral.
+globalPCD is a Python toolkit for passive cavitation detection, designed for
+stable-cavitation applications. The goal is sustained bubble oscillation with no
+inertial collapse. It classifies each receive window as none / stable /
+inertial / mixed, with confidence, optional location, and measured latency, so
+a therapy controller can tell whether a sonication is below, inside, or above
+the stable window.
 
-OpenLIFU (and similar platforms) can plan and deliver ultrasound, but they do
-not hear what happens in tissue. globalPCD consumes receive-channel RF and
-emits a versioned [`PCDReading`](docs/PCDREADING.md): no / stable / inertial
-cavitation, how sure, optional location, measured latency. It **never** chooses
-the next pulse.
+The reading contract and classifier are application-agnostic and can serve
+other cavitation work. Stable-cavitation monitoring is what the project is
+designed, tuned, and (eventually) validated against. Synthetic data only so far.
 
-For neuromodulation, cavitation is a hazard to avoid. A high-confidence
-`inertial` reading is meant as an interlock or step-down input beside existing
-mechanical-index limits — research-only, not FDA-evaluated. Histotripsy-style
-dosing and array localization remain in the toolkit as a later path.
+The hard part is not detecting that cavitation exists, but rather knowing, in
+real time, **where** it is and **what kind** it is. Therapy pulses, tissue
+clutter, and bubbles all radiate into the same receive array. Stable and
+inertial regimes overlap spectrally, and on diagnostic linear arrays,
+conventional delay-and-sum maps are axially blurred with high sidelobes, while
+sharper adaptive beamformers are often too slow for closed-loop monitoring.
+
+Each reading is a versioned [`PCDReading`](docs/PCDREADING.md). globalPCD
+**never** chooses the next pulse; that stays with the controller. MIT-licensed,
+vendor-neutral, research-only, not FDA-evaluated.
+
+Static product page: [`docs/index.html`](docs/index.html) (open the file, or
+publish the `docs/` folder with GitHub Pages).
 
 ## Install
 
@@ -67,9 +79,10 @@ python examples/mock_controller.py
 | `pcd.beamformer` | Optional array mapping (GCC-PHAT, DAS, HO-DMAS) — phase 2 |
 | `pcd.feedback` | `PCDFeedbackEngine` → `PCDReading` |
 | `pcd.hw` | Hydrophone file ingest, TX-trigger clock, synthetic / `.npy` sources |
+| `pcd.log` | One-line developer log per frame (`pcd` logger; schema unchanged) |
 
-Prototype copies and a browser visualiser live under [`files/`](files/README.md)
-([`files/pcd_viz.html`](files/pcd_viz.html)).
+The browser visualiser is [`files/pcd_viz.html`](files/pcd_viz.html). The
+installable code is `pcd/`.
 
 ## Hardware path (OpenLIFU)
 
@@ -83,6 +96,20 @@ the transmitter. Arming TX is an actuation decision for the therapy platform;
 pass `allow_tx_start=True` (or `--start-tx` in the example) only on a bench.
 
 `pip install -e ".[openlifu]"` is optional and not required for tests.
+
+## Developer log
+
+The engine writes one line per frame on the `pcd` logger. It does not
+configure logging, and it does not add fields to `PCDReading`. Successful
+readings are INFO. A deadline miss is WARNING (`reason=deadline`). A fault
+is ERROR (`reason=fault`), with a traceback, and still returns `no_reading`.
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+```
+
+Line format and the beside-trigger pulse log: [`docs/LOGGING.md`](docs/LOGGING.md).
 
 ## Collaboration
 

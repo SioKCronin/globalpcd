@@ -10,13 +10,14 @@ repository-code: "https://github.com/SioKCronin/globalPCD"
 abstract: >-
   Python toolkit that emits a versioned PCDReading (cavitation regime,
   confidence, optional location, latency) for focused-ultrasound controllers.
-  Primary use is research-only safety monitoring; synthetic PCD and optional
-  array localization are included.
+  Designed for holding sonications in the stable-cavitation window
+  (research-only); synthetic PCD and optional array localization are
+  included.
 keywords:
   - passive cavitation detection
   - focused ultrasound
+  - stable cavitation
   - neuromodulation
-  - safety monitoring
   - histotripsy
   - ultrasound
   - beamforming

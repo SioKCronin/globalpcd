@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "globalpcd"
 version = "0.1.1"
-description = "Cavitation safety monitor for focused-ultrasound controllers (PCDReading contract)"
+description = "Passive cavitation detection for holding focused-ultrasound sonications in the stable-cavitation window"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -16,8 +16,8 @@ authors = [
 keywords = [
     "passive cavitation detection",
     "focused ultrasound",
+    "stable cavitation",
     "neuromodulation",
-    "safety monitoring",
     "openlifu",
 ]
 classifiers = [

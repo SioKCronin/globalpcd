@@ -36,6 +36,7 @@ import numpy as np
 from .beamformer import ArrayGeometry, gcc_phat_map
 from .classifier import ClassifierConfig, classify
 from .features import active_burst_window, extract_features
+from .log import format_features, log_reading
 
 SCHEMA_VERSION = "1.1.0"
 
@@ -252,23 +253,15 @@ class PCDFeedbackEngine:
             latency_ms = (time.perf_counter() - t0) * 1e3
             stages["total_ms"] = latency_ms
             self.last_stage_latency_ms = stages
+            detail = format_features(features)
 
             # --- fail-safe deadline ---
             deadline = self.config.deadline_ms
             if deadline is not None and latency_ms > deadline:
-                reading = PCDReading(
-                    schema_version=SCHEMA_VERSION,
-                    frame_id=frame_id,
-                    timestamp=trigger_timestamp,
-                    status=ReadingStatus.NO_READING,
-                    regime=CavitationRegime.UNKNOWN,
-                    confidence=0.0,
-                    location_estimate=None,
-                    location_uncertainty=None,
-                    dose_proxy=None,
-                    latency_ms=latency_ms,
-                    stage_latency_ms=stages,
+                reading = _no_reading(
+                    frame_id, trigger_timestamp, latency_ms, stages
                 )
+                log_reading(reading, reason="deadline", detail=detail)
                 self._emit(reading)
                 return reading
 
@@ -299,25 +292,20 @@ class PCDFeedbackEngine:
                 stage_latency_ms=stages,
                 location_frame_id=loc_frame if location is not None else None,
             )
+            log_reading(reading, reason="reading", detail=detail)
             self._emit(reading)
             return reading
 
-        except Exception:
+        except Exception as exc:
             latency_ms = (time.perf_counter() - t0) * 1e3
             stages["total_ms"] = latency_ms
             self.last_stage_latency_ms = stages
-            reading = PCDReading(
-                schema_version=SCHEMA_VERSION,
-                frame_id=frame_id,
-                timestamp=trigger_timestamp,
-                status=ReadingStatus.NO_READING,
-                regime=CavitationRegime.UNKNOWN,
-                confidence=0.0,
-                location_estimate=None,
-                location_uncertainty=None,
-                dose_proxy=None,
-                latency_ms=latency_ms,
-                stage_latency_ms=stages,
+            reading = _no_reading(frame_id, trigger_timestamp, latency_ms, stages)
+            log_reading(
+                reading,
+                reason="fault",
+                detail=f"{type(exc).__name__}: {exc}",
+                exc_info=True,
             )
             self._emit(reading)
             return reading
@@ -325,6 +313,28 @@ class PCDFeedbackEngine:
     def _emit(self, reading: PCDReading) -> None:
         for cb in self._subscribers:
             cb(reading)
+
+
+def _no_reading(
+    frame_id: int,
+    timestamp: float,
+    latency_ms: float,
+    stages: dict[str, float],
+) -> PCDReading:
+    """Deadline miss or hard fault. No location, no dose, do not act."""
+    return PCDReading(
+        schema_version=SCHEMA_VERSION,
+        frame_id=frame_id,
+        timestamp=timestamp,
+        status=ReadingStatus.NO_READING,
+        regime=CavitationRegime.UNKNOWN,
+        confidence=0.0,
+        location_estimate=None,
+        location_uncertainty=None,
+        dose_proxy=None,
+        latency_ms=latency_ms,
+        stage_latency_ms=stages,
+    )
 
 
 def _map_regime(label: str) -> CavitationRegime:

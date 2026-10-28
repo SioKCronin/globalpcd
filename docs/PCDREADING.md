@@ -47,12 +47,17 @@ spaces calls at the PRF when `--pace` is passed.
 - **`degraded`** — produced, but low confidence or incomplete (e.g. no location yet). Do not escalate.
 - **`no_reading`** — deadline miss or hard fault. **Do not act.** Do not replay a stale frame as live.
 
-Suggested controller mapping for **neuromodulation safety** (research-only):
+Suggested controller mapping for **stable-cavitation work** (research-only;
+policy stays with the platform):
 
-- `inertial` + high confidence → interlock or step-down
+- `stable` + high confidence → in window, continue
+- `none` → below window; report it, and whether to adjust drive is platform policy
+- `mixed` → approaching the ceiling; step down
+- `inertial` → above the ceiling; stop or step down, beside existing MI limits
 - `no_reading` past a deadline → hold
-- `none` → continue under existing MI/pressure limits
-- `stable` → caution; policy stays with the platform
+
+For sonications meant to stay cavitation-free, the same reading works as a
+safety check: `inertial` → interlock, `stable` → caution, `none` → continue.
 
 ## Versioning
 

@@ -1,9 +1,11 @@
 # Contributing
 
-Thanks for looking at globalPCD. It is an MIT-licensed cavitation **safety
-monitor** for focused-ultrasound controllers (OpenLIFU included): emit a
-versioned `PCDReading`, never choose the next pulse. Histotripsy dosing
-research is in the toolkit but is not the lead use case.
+Thanks for looking at globalPCD. It is an MIT-licensed cavitation monitor for
+focused-ultrasound controllers (OpenLIFU included), designed for holding a
+sonication in the stable-cavitation window: emit a versioned `PCDReading`,
+never choose the next pulse. The reading and classifier also serve other
+cavitation work, including cavitation-free safety checks and histotripsy, but
+stable-cavitation monitoring is the lead use case.
 
 This software is research-only and not FDA-evaluated.
 
@@ -34,7 +36,10 @@ maintainer who will respond on the PR.
 3. Fail safe explicitly (`no_reading` / `degraded`); never silently replay stale
    frames as live.
 4. Measure per-stage latency; don't assume “real-time.”
-5. Exercise changes with synthetic streams (`SignalParams.lifu()`,
+5. A fault still returns `no_reading`. The traceback belongs on the `pcd`
+   logger (`docs/LOGGING.md`), not in a swallowed exception and not in a new
+   schema field.
+6. Exercise changes with synthetic streams (`SignalParams.lifu()`,
    `iter_signals`) and the hydrophone / mock-controller examples:
 
 ```bash
